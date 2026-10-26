@@ -89,9 +89,19 @@ class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=500)
 
 
+class Evidence(BaseModel):
+    """답변 근거가 된 공지 조각 (출처 표시용)"""
+
+    notice_id: int
+    title: str
+    snippet: str
+
+
 class ChatOut(BaseModel):
     answer: str
     keywords: list[str]
     items: list[FeedItem]
     sources: list[str]
     engine: str  # "rule" | "chatkhu"
+    evidence: list[Evidence] = []
+    cached: bool = False  # 같은 질문·조건이면 저장된 답을 재사용 (모델 호출 안 함)

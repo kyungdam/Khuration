@@ -3,7 +3,7 @@ from datetime import datetime
 
 from app.crawler import extract as extract_mod
 from app.crawler.base import RawNotice
-from app.crawler.extract_llm import extract_with_llm, sanitize_criteria, to_extracted
+from app.crawler.extract_llm import extract_with_llm, resolve_deadline, sanitize_criteria, to_extracted
 from app.llm import client
 
 RAW = RawNotice(source_name="테스트", url="https://example.com/n/1", title="[SSAFY] 17기 모집", body_text="본문",
@@ -60,3 +60,12 @@ def test_extract_falls_back_when_llm_fails(monkeypatch):
 def test_extract_uses_rules_without_key(monkeypatch):
     monkeypatch.setattr(client, "available", lambda: False)
     assert extract_mod.extract(RAW, "x").engine == "rule"
+
+
+def test_deadline_without_year_uses_posted_year():
+    assert resolve_deadline("11-09", datetime(2026, 10, 26)) == datetime(2026, 11, 9, 14, 59)
+    assert resolve_deadline("11.9", datetime(2026, 10, 26)) == datetime(2026, 11, 9, 14, 59)
+    assert resolve_deadline("01-15", datetime(2026, 12, 20)) == datetime(2027, 1, 15, 14, 59)  # 해 넘김
+    assert resolve_deadline("2026.11.9", None) == datetime(2026, 11, 9, 14, 59)
+    assert resolve_deadline("13-40", datetime(2026, 1, 1)) is None
+    assert resolve_deadline(None, None) is None

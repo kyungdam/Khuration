@@ -7,7 +7,8 @@
 <title>KHURATION</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap">
+<!-- 글꼴은 기다리지 않고 화면부터 그린다 (폰 네트워크가 느리면 렌더링이 막히던 문제). 받아지면 바뀌고, 못 받으면 기기 글꼴 -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
 <style>
 :root{--b:#8A1538;--bt:#F5E8EB;--ink:#231519;--ink2:#5E4E53;--ink3:#786A6E;--line:#EDE3E6;--field:#E6D9DD;--bg:#FAF7F5;--top:52px}
 *{box-sizing:border-box}
@@ -788,7 +789,10 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     },
     chat: async function (message, threadId) {
       var r = await http('POST', '/ai/chat', { message: message.slice(0, 500) });
-      var reply = { text: r.answer, highlight: null, cards: (r.items || []).map(toSummary), followUp: null, actions: [], sources: r.sources || [] };
+      // 출처: 답의 근거가 된 공지 제목 (없으면 기관 이름)
+      var ev = [];
+      (r.evidence || []).forEach(function (e) { if (ev.indexOf(e.title) < 0) ev.push(e.title); });
+      var reply = { text: r.answer, highlight: null, cards: (r.items || []).map(toSummary), followUp: null, actions: [], sources: ev.length ? ev.slice(0, 3) : (r.sources || []) };
       var now = new Date().toISOString();
       var threads = store.get('threads', []);
       var all = store.get('messages', {});

@@ -46,7 +46,7 @@ def main(argv):
         print(f"\n[{m}]")
         _run(
             "텍스트",
-            lambda: client.chat([{"role": "user", "content": "한 문장으로 인사해 줘."}], m, max_tokens=60),
+            lambda: client.chat([{"role": "user", "content": "한 문장으로 인사해 줘."}], m, max_tokens=500),
         )
         _run(
             "JSON",
@@ -78,7 +78,7 @@ def main(argv):
                         }
                     ],
                     m,
-                    max_tokens=800,
+                    max_tokens=4000,
                 ),
             )
     return 0

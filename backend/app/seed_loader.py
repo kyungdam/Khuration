@@ -6,7 +6,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from . import clock
-from .models import Notice, NotificationLog
+from .models import Notice, NoticeChunk, NotificationLog
 
 SEED_PATH = Path(__file__).resolve().parents[1] / "seed" / "notices.json"
 
@@ -19,6 +19,7 @@ def content_hash(title: str, deadline, criteria) -> str:
 def load_seed(db: Session, replace: bool = False) -> int:
     if replace:
         db.query(NotificationLog).delete()
+        db.query(NoticeChunk).delete()  # 검색 조각은 다음 검색 때 다시 만든다 (Postgres FK 대비 먼저 삭제)
         db.query(Notice).filter(Notice.is_demo.is_(True)).delete()
         db.commit()
         clock.reset()

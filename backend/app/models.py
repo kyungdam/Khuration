@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import JSON, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -71,3 +71,23 @@ class NotificationLog(Base):
     kind: Mapped[str] = mapped_column(String(20))  # new|changed|d3
     content_hash: Mapped[str] = mapped_column(String(64))
     sent_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
+
+
+class NoticeChunk(Base):
+    """KHU AI 검색(RAG)용 공지 조각. 공지 내용(source_hash)이 바뀐 공지만 다시 만든다 (app/rag/index.py)."""
+
+    __tablename__ = "notice_chunks"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    notice_id: Mapped[int] = mapped_column(ForeignKey("notices.id"), index=True)
+    seq: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    source_hash: Mapped[str] = mapped_column(String(64))
+
+
+class AnswerCache(Base):
+    """KHU AI 답변 캐시. 키는 (질문+조건 태그+색인 버전)의 해시라 질문 원문은 저장하지 않는다."""
+
+    __tablename__ = "answer_cache"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)

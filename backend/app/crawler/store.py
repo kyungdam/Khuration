@@ -42,10 +42,16 @@ def upsert_notice(db: Session, raw: RawNotice, ex: Extracted, attachment_texts: 
     n.content_hash = h
     db.flush()
 
+    # 첨부 + 본문 포스터 이미지(OCR 글자)를 저장한다. KHU AI 검색(app/rag)이 이 글자도 찾는다.
     texts = attachment_texts or {}
-    existing = {a.file_url for a in n.attachments}
-    for a in raw.attachments:
-        if a.url not in existing:
-            db.add(Attachment(notice_id=n.id, file_url=a.url, kind=a.kind, extracted_text=texts.get(a.url, "")))
+    existing = {a.file_url: a for a in n.attachments}
+    files = [(a.url, a.kind) for a in raw.attachments] + [(u, "image") for u in raw.image_urls]
+    for url, kind in files:
+        text = texts.get(url, "")
+        a = existing.get(url)
+        if a is None:
+            db.add(Attachment(notice_id=n.id, file_url=url, kind=kind, extracted_text=text))
+        elif text and a.extracted_text != text:
+            a.extracted_text = text
     db.commit()
     return n, change
