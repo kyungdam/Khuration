@@ -49,3 +49,7 @@
 - `DELETE /devices`: 내 데이터 삭제
 - demo 전용: `/demo/advance-clock`, `/demo/reset-clock`, `/demo/reseed`, `/demo/change-notice`, `/demo/fire-push`
 - 시드 공지 제목은 `[데모]`로 시작하며 url은 example.com 플레이스홀더. 실제 공지로 오인되게 하지 않는다.
+
+## 크롤러
+- 크롤러·첨부 파싱 작업 규칙은 `backend/app/crawler/CLAUDE.md`를 따른다.
+- 크롤러는 `crawler/store.upsert_notice()`로만 저장한다. 시드 공지는 `is_demo=True`, 크롤링 공지는 `is_demo=False`.
