@@ -1,9 +1,9 @@
-# 크롤러 작업 규칙 (backend/app/crawler, backend/app/parsers)
+# 크롤러 작업 규칙 (backend/app/crawler)
 
 이 폴더에서 작업하는 사람(과 Claude Code)이 지킬 규칙. 루트 CLAUDE.md의 절대 규칙도 그대로 적용된다.
 
 ## 작업 범위
-- 수정해도 되는 곳: `backend/app/crawler/`, `backend/app/parsers/`, `backend/tests/test_crawler*.py`, `backend/requirements.txt`(의존성 추가만)
+- 수정해도 되는 곳: `backend/app/crawler/`(parsers 연결부 제외), `backend/tests/test_crawler*.py`, `backend/requirements.txt`(의존성 추가만)
 - 건드리지 않는 곳: `app/`(앱 화면), `backend/app/models.py`, `routers/`, `matching/`, `schemas.py`
   - 모델/API를 바꿔야 하면 직접 고치지 말고 팀에 먼저 말한다 (앱과 계약이 깨짐)
 
@@ -28,11 +28,14 @@
 - 하루 2회(14시, 20시 KST) 실행 기준. 테스트할 때도 `--limit`을 작게.
 - 원문 전체를 앱에 복제하지 않는다. 앱은 요약·지원 자격·원문 링크만 보여준다.
 
-## 첨부 파싱 (parsers/)
-- 함수 하나 = 형식 하나: `parsers/hwp.py`(`hwp5txt`, 실패 시 HWPX는 zip 안 XML), `parsers/pdf.py`(PyMuPDF/pdfplumber), `parsers/image.py`(비전 모델)
-- 시그니처: `def extract_text(data: bytes, filename: str) -> str` — 실패하면 예외 대신 빈 문자열
-- 텍스트가 거의 없는 PDF는 스캔본으로 보고 이미지 경로로 넘긴다
-- 결과는 `run.py`의 `attachment_texts[url] = text` 로 넘겨 저장한다
+## 첨부 파싱 (parsers/) — 구현 완료, 크롤러 담당은 수정하지 않음
+- `parse_attachment(data, filename)` → `ParseResult(text, method, needs_ocr, note)`. 형식은 매직 바이트로 판별
+- HWP 5.0: 자체 구현(olefile + 레코드 해석). 배포용·암호 문서는 빈 텍스트 + note
+- HWPX: zip 안 Contents/sectionN.xml. PDF: PyMuPDF, 페이지당 글자 40자 미만이면 스캔본(needs_ocr)
+- 이미지·스캔본은 needs_ocr=True만 표시 (ChatKHU 비전 연결 후 처리)
+- `run.py`의 `read_attachments()`가 첨부를 내려받아 자동으로 읽는다. 어댑터는 `RawAttachment` 링크만 채우면 됨
+- 로컬 파일 시험: `python -m app.parsers 공고문.hwp`
+- 실제 공고 파일을 `tests/fixtures/`에 넣으면 `test_real_fixtures_parse`가 자동 검사
 
 ## 조건 추출 (extract.py)
 - 출력은 `EMPTY_CRITERIA`와 같은 키. 공지에 없는 조건은 None/[] (추측 금지 — 앱이 "확인 필요"로 보여준다)

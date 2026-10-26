@@ -6,10 +6,29 @@
 import argparse
 
 from ..db import Base, SessionLocal, engine
+from ..parsers import parse_attachment
 from .adapters import ADAPTERS
 from .base import PoliteClient
 from .extract import extract
 from .store import upsert_notice
+
+
+def read_attachments(client: PoliteClient, raw) -> dict[str, str]:
+    """HWP/HWPX/PDF 첨부를 내려받아 텍스트로. 스캔본·이미지는 OCR 필요로 표시만 하고 건너뜀."""
+    texts: dict[str, str] = {}
+    for att in raw.attachments:
+        if att.kind not in ("hwp", "hwpx", "pdf"):
+            continue
+        try:
+            res = parse_attachment(client.get(att.url).content, att.filename)
+        except Exception as e:
+            print(f"    첨부 실패 {att.filename}: {e}")
+            continue
+        if res.text:
+            texts[att.url] = res.text
+        if res.needs_ocr or res.note:
+            print(f"    첨부 {att.filename}: {res.method} {'OCR 필요' if res.needs_ocr else ''} {res.note}".rstrip())
+    return texts
 
 
 def run(sources: list[str], limit: int, dry_run: bool) -> dict:
@@ -23,12 +42,11 @@ def run(sources: list[str], limit: int, dry_run: bool) -> dict:
                 for item in ad.fetch_list(client, limit):
                     try:
                         raw = ad.fetch_detail(client, item)
-                        # TODO(파서 담당): 첨부(HWP/PDF)·이미지 텍스트를 parsers/로 뽑아 합치기
-                        attachment_texts: dict[str, str] = {}
+                        attachment_texts = read_attachments(client, raw)
                         full = "\n".join([raw.body_text, *attachment_texts.values()])
                         ex = extract(raw, full)
                         if dry_run:
-                            print(f"[{key}] {raw.title} | {ex.category} | 첨부 {len(raw.attachments)} | 마감 {ex.deadline}")
+                            print(f"[{key}] {raw.title} | {ex.category} | 첨부 {len(raw.attachments)}(읽음 {len(attachment_texts)}) | 마감 {ex.deadline}")
                             continue
                         _, change = upsert_notice(db, raw, ex, attachment_texts)
                         stats[change] += 1

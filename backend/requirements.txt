@@ -7,3 +7,5 @@ httpx
 python-dotenv
 pytest
 beautifulsoup4
+olefile
+pymupdf
