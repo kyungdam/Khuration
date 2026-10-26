@@ -218,3 +218,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Khuration
+.env
+*.db
+.venv/
+__pycache__/
+node_modules/
+.expo/
