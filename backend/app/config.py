@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./dev.db"
     chatkhu_api_key: str = ""
     chatkhu_base_url: str = ""
+    chatkhu_model_extract: str = "gemini-3.8-flash"
+    chatkhu_model_vision: str = "gemini-3.5-flash-lite"
+    chatkhu_model_chat: str = "gemini-3.5-flash-lite"
+    chatkhu_model_dev: str = "gpt-5.4-nano"
 
 
 settings = Settings()

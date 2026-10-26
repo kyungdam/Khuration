@@ -1,5 +1,5 @@
 """원본 공지 → 앱이 쓰는 구조화 정보.
-TODO(크롤러 담당): ChatKHU로 extract_with_llm 구현. 실패하거나 키가 없으면 extract_rule_based로 폴백.
+ChatKHU 추출은 extract_llm.py. 실패하거나 키가 없으면 extract_rule_based로 폴백.
 LLM은 '조건 추출'만 한다. 학생 정보와 대조(매칭)는 app/matching/engine.py가 한다."""
 import re
 from dataclasses import dataclass, field
@@ -70,7 +70,14 @@ def extract_rule_based(raw: RawNotice, full_text: str) -> Extracted:
 
 
 def extract(raw: RawNotice, full_text: str) -> Extracted:
-    # TODO: ChatKHU 연결 후
-    # try: return extract_with_llm(raw, full_text)
-    # except Exception: pass
+    """키가 있으면 ChatKHU로, 없거나 실패하면 규칙 기반으로."""
+    from ..llm import client
+
+    if client.available():
+        try:
+            from .extract_llm import extract_with_llm
+
+            return extract_with_llm(raw, full_text)
+        except Exception as e:  # 모델 오류가 크롤링 전체를 멈추지 않게
+            print(f"    LLM 추출 실패 → 규칙 기반으로 대체: {e}")
     return extract_rule_based(raw, full_text)

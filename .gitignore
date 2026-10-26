@@ -226,3 +226,6 @@ __marimo__/
 __pycache__/
 node_modules/
 .expo/
+
+# OCR 캐시
+backend/.ocr_cache/

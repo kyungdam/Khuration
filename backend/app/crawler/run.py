@@ -16,22 +16,38 @@ from .store import upsert_notice
 READABLE = (".hwp", ".hwpx", ".pdf", ".docx")
 
 
+MAX_OCR_PER_NOTICE = 4  # 공지 하나에서 비전 모델에 보내는 이미지 상한 (비용 보호)
+
+
 def read_attachments(client: PoliteClient, raw) -> dict[str, str]:
-    """HWP/HWPX/PDF 첨부를 내려받아 텍스트로. 스캔본·이미지는 OCR 필요로 표시만 하고 건너뜀."""
+    """첨부·본문 이미지를 텍스트로. HWP/HWPX/DOCX/PDF는 파서, 이미지·스캔 PDF는 비전 모델(키 있을 때)."""
+    from ..llm import ocr
+
     texts: dict[str, str] = {}
-    for att in raw.attachments:
-        # 형식은 파서가 파일 앞부분으로 다시 판별한다. 이미지는 OCR(비전 모델) 연결 전까지 건너뜀
-        if att.kind == "image" or not att.filename.lower().endswith(READABLE):
+    ocr_used = 0
+    targets = [(a.url, a.filename, a.kind) for a in raw.attachments]
+    targets += [(u, u.rsplit("/", 1)[-1] or "image", "image") for u in raw.image_urls]
+    for url, filename, kind in targets:
+        is_image = kind == "image"
+        if not is_image and not filename.lower().endswith(READABLE):
             continue
         try:
-            res = parse_attachment(client.get(att.url).content, att.filename)
+            data = client.get(url).content
+            res = parse_attachment(data, filename)
         except Exception as e:
-            print(f"    첨부 실패 {att.filename}: {e}")
+            print(f"    첨부 실패 {filename}: {e}")
             continue
-        if res.text:
-            texts[att.url] = res.text
-        if res.needs_ocr or res.note:
-            print(f"    첨부 {att.filename}: {res.method} {'OCR 필요' if res.needs_ocr else ''} {res.note}".rstrip())
+        text = res.text
+        if res.needs_ocr and ocr_used < MAX_OCR_PER_NOTICE:
+            ocr_used += 1
+            text = ocr.ocr_pdf(data) if res.method == "pdf" else ocr.ocr_image(data)
+            print(f"    OCR {filename}: {len(text)}자")
+        elif res.needs_ocr:
+            print(f"    OCR 건너뜀(상한) {filename}")
+        elif res.note:
+            print(f"    첨부 {filename}: {res.method} {res.note}")
+        if text:
+            texts[url] = text
     return texts
 
 
