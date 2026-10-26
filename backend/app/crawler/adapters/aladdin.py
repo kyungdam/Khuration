@@ -11,7 +11,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from ..base import Adapter, ListItem, PoliteClient, RawNotice
-from .khu_cms import block_text
+from .khu_cms import block_text, drop_disallowed_images
 
 BASE = "https://aladdin.khu.ac.kr/portfolio/ptfol/imng/icmpNsbjtPgm/"
 SSO_PARAM = "ssoReChk=ok"
@@ -113,4 +113,4 @@ class AladdinAdapter(Adapter):
         return items
 
     def fetch_detail(self, client: PoliteClient, item: ListItem) -> RawNotice:
-        return parse_detail(fetch(client, item.url), item, self.name)
+        return drop_disallowed_images(client, parse_detail(fetch(client, item.url), item, self.name))

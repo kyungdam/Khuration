@@ -54,6 +54,13 @@ def parse_list(html: str, limit: int, detail_url, rows: str = "div.bbs_tbl-st1 t
     return items
 
 
+def drop_disallowed_images(client: PoliteClient, raw: RawNotice) -> RawNotice:
+    """robots.txt가 막는 경로(예: com.khu.ac.kr/upload/)의 본문 이미지는 image_urls에서 뺀다.
+    넣어 두면 run.py가 내려받으려다 거부되고 글자 없는 빈 행만 남는다. 판정은 PoliteClient가 한다."""
+    raw.image_urls = [u for u in raw.image_urls if client._allowed(u)]
+    return raw
+
+
 def parse_detail(html: str, item: ListItem, source_name: str) -> RawNotice:
     soup = BeautifulSoup(html, "html.parser")
     view = soup.select_one("article.bbs-view")
@@ -129,4 +136,4 @@ class KhuCmsAdapter(Adapter):
         return parse_list(client.get(self.list_url).text, limit, self.detail_url, self.list_rows)
 
     def fetch_detail(self, client: PoliteClient, item: ListItem) -> RawNotice:
-        return self.parse_detail(client.get(item.url).text, item, self.name)
+        return drop_disallowed_images(client, self.parse_detail(client.get(item.url).text, item, self.name))
