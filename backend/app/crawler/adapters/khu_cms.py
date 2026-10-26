@@ -11,7 +11,8 @@ from bs4 import BeautifulSoup
 
 from ..base import Adapter, ListItem, PoliteClient, RawAttachment, RawNotice, guess_kind
 
-VIEW_ID = re.compile(r"view\('(\d+)'\)")
+VIEW_ID = re.compile(r"view\('(\d+)'")
+BLOCKS = ["p", "div", "li", "tr", "h1", "h2", "h3", "h4", "table"]
 
 
 def parse_date(text: str) -> datetime | None:
@@ -21,10 +22,23 @@ def parse_date(text: str) -> datetime | None:
     return datetime.strptime(m.group(0), "%Y-%m-%d %H:%M:%S" if m.group(1) else "%Y-%m-%d")
 
 
-def parse_list(html: str, limit: int, detail_url) -> list[ListItem]:
+def block_text(el) -> str:
+    """에디터가 글자를 <span>으로 잘게 나눠도 문단(p/div/li…)과 <br> 단위로만 줄을 바꾼다."""
+    if el is None:
+        return ""
+    el = BeautifulSoup(str(el), "html.parser")  # 원본 soup은 건드리지 않음
+    for br in el.find_all("br"):
+        br.replace_with("\n")
+    for b in el.find_all(BLOCKS):
+        b.append("\n")
+    lines = (re.sub(r"[ \t\xa0]+", " ", ln).strip() for ln in el.get_text("").splitlines())
+    return "\n".join(ln for ln in lines if ln)
+
+
+def parse_list(html: str, limit: int, detail_url, rows: str = "div.bbs_tbl-st1 table tbody tr") -> list[ListItem]:
     soup = BeautifulSoup(html, "html.parser")
     items, seen = [], set()
-    for row in soup.select("div.bbs_tbl-st1 table tbody tr"):
+    for row in soup.select(rows):
         a = row.select_one("td.tal a[href]")
         m = VIEW_ID.search(a["href"]) if a else None
         if not m or m.group(1) in seen:  # 고정 글이 일반 목록에도 다시 나온다
@@ -32,8 +46,9 @@ def parse_list(html: str, limit: int, detail_url) -> list[ListItem]:
         seen.add(m.group(1))
         for tag in a.select("span.txtBox01"):  # All/Seoul/Global 캠퍼스 표시
             tag.decompose()
+        dates = (parse_date(td.get_text(strip=True)) for td in row.select("td"))  # 등록일 칸 위치가 사이트마다 다름
         items.append(ListItem(url=detail_url(m.group(1)), title=a.get_text(" ", strip=True),
-                              posted_at=parse_date(row.select("td")[-1].get_text(strip=True))))
+                              posted_at=next((d for d in dates if d), None)))
         if len(items) >= limit:
             break
     return items
@@ -55,8 +70,34 @@ def parse_detail(html: str, item: ListItem, source_name: str) -> RawNotice:
         source_name=source_name,
         url=item.url,
         title=item.title,
-        body_text=body.get_text("\n", strip=True) if body else "",
+        body_text=block_text(body),
         posted_at=posted or item.posted_at,
+        attachments=atts,
+        image_urls=[urljoin(item.url, i["src"]) for i in (body.select("img[src]") if body else [])],
+    )
+
+
+def parse_detail_board02(html: str, item: ListItem, source_name: str) -> RawNotice:
+    """대표 홈페이지(www.khu.ac.kr)형 상세: div.board02 > .row(제목·날짜) / .row.contents(본문) / .row.addFile(첨부).
+    캠퍼스 표시(서울/국제/공통)는 저장할 칸이 없어서 본문 첫 줄에 "캠퍼스: 서울"로 남긴다 (조건 추출에서 사용)."""
+    soup = BeautifulSoup(html, "html.parser")
+    view = soup.select_one("div.board02")
+    body = view.select_one(".row.contents") if view else None
+    atts = []
+    for a in view.select(".row.addFile a[href*='fileDown.do']") if view else []:
+        name = a.get_text(strip=True)
+        atts.append(RawAttachment(url=urljoin(item.url, a["href"]), filename=name, kind=guess_kind(name)))
+    campus = view.select_one(".tit span.txtBox01") if view else None
+    date = view.select_one(".dateBox .date") if view else None
+    text = block_text(body)
+    if campus and campus.get_text(strip=True):
+        text = f"캠퍼스: {campus.get_text(strip=True)}\n{text}".strip()
+    return RawNotice(
+        source_name=source_name,
+        url=item.url,
+        title=item.title,
+        body_text=text,
+        posted_at=(parse_date(date.get_text()) if date else None) or item.posted_at,
         attachments=atts,
         image_urls=[urljoin(item.url, i["src"]) for i in (body.select("img[src]") if body else [])],
     )
@@ -66,6 +107,8 @@ class KhuCmsAdapter(Adapter):
     site = ""        # 예: "https://eng.khu.ac.kr"
     board_path = ""  # 예: "/eng_kor/user/bbs/BMSR00040/"
     menu_no = ""
+    list_rows = "div.bbs_tbl-st1 table tbody tr"
+    parse_detail = staticmethod(parse_detail)
 
     @property
     def list_url(self) -> str:
@@ -76,7 +119,7 @@ class KhuCmsAdapter(Adapter):
         return f"{self.site}{self.board_path}view.do?menuNo={self.menu_no}&boardId={board_id}"
 
     def fetch_list(self, client: PoliteClient, limit: int) -> list[ListItem]:
-        return parse_list(client.get(self.list_url).text, limit, self.detail_url)
+        return parse_list(client.get(self.list_url).text, limit, self.detail_url, self.list_rows)
 
     def fetch_detail(self, client: PoliteClient, item: ListItem) -> RawNotice:
-        return parse_detail(client.get(item.url).text, item, self.name)
+        return self.parse_detail(client.get(item.url).text, item, self.name)
