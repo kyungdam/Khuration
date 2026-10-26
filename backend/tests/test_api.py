@@ -79,3 +79,26 @@ def test_notices_list_detail_and_chat():
         r = c.post("/ai/chat", headers=H, json={"message": "AI 관련 공모전 있어?"}).json()
         assert r["items"] and all("contest" in i["topics"] or "ai_data" in i["topics"] for i in r["items"])
         assert r["engine"] == "rule"
+
+
+def test_chat_uses_llm_text_when_available(monkeypatch):
+    from app.llm import chat as chat_mod
+    from app.llm import client
+
+    monkeypatch.setattr(client, "available", lambda: True)
+    monkeypatch.setattr(client, "chat", lambda *a, **k: "마감이 가까운 공모전부터 보여 드릴게요. 카드에서 확인해 보세요!")
+    out = chat_mod.answer("AI 공모전", [], {"interests": ["ai_data"]})
+    assert out["engine"] == "chatkhu" and out["answer"].startswith("마감이")
+
+
+def test_chat_falls_back_when_llm_fails(monkeypatch):
+    from app.llm import chat as chat_mod
+    from app.llm import client
+
+    def boom(*a, **k):
+        raise client.LLMError("HTTP 500")
+
+    monkeypatch.setattr(client, "available", lambda: True)
+    monkeypatch.setattr(client, "chat", boom)
+    out = chat_mod.answer("AI 공모전", [], {})
+    assert out["engine"] == "rule" and "찾지 못했어요" in out["answer"]
