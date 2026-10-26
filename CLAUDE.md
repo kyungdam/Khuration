@@ -30,3 +30,22 @@
 ## 작업 방식
 - 기능 하나씩(시드/API → 크롤러 → 파서 → 추출 → 매칭 → 푸시) 구현하고 테스트 후 다음으로.
 - 실행: cd backend && uvicorn app.main:app --reload --host 0.0.0.0
+
+## 앱 ↔ 서버 계약 (Figma 온보딩 기준)
+앱 로컬에만 저장: 이름, 정확한 평균 학점/직전 평점/취득 학점, '하고 싶은 활동' 원문.
+서버로 보내는 태그 (`POST /devices`, 헤더 없이 body로 push_token + tags):
+- campus: "seoul" | "global"
+- college, dept: 학과 선택 값 (college는 선택)
+- grade: 1~6
+- gpa_floor / last_gpa_floor: 0.5 단위 내림 (3.87 → 3.5, 4.02 → 4.0)
+- credits_floor: 10 단위 내림 (78 → 70)
+- income_band: 1~10
+- interests: dev_it, ai_data, design, scholarship, startup, language_abroad, internship
+- has_lang_score: 선택 (Figma에 없으면 생략 → 어학 필요 공지는 "확인 필요")
+이후 모든 호출은 헤더 `X-Device-Token: <push_token>`.
+- `POST /devices/intent` {text}: 문장 → 키워드만 저장, 원문 미저장
+- `GET /feed`: 일치 → 확인 필요 순 (불일치는 `?include_mismatch=true`)
+- `GET /notices/{id}`: 요약·지원 자격·원문 링크
+- `DELETE /devices`: 내 데이터 삭제
+- demo 전용: `/demo/advance-clock`, `/demo/reset-clock`, `/demo/reseed`, `/demo/change-notice`, `/demo/fire-push`
+- 시드 공지 제목은 `[데모]`로 시작하며 url은 example.com 플레이스홀더. 실제 공지로 오인되게 하지 않는다.

@@ -1,9 +1,13 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import JSON, DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class Source(Base):
@@ -19,6 +23,9 @@ class Notice(Base):
     __tablename__ = "notices"
     id: Mapped[int] = mapped_column(primary_key=True)
     source_id: Mapped[int | None] = mapped_column(ForeignKey("sources.id"))
+    source_name: Mapped[str] = mapped_column(String(100), default="")
+    category: Mapped[str] = mapped_column(String(20), default="")  # 장학|현장실습|국제교류|공모전|학사
+    topics: Mapped[list | None] = mapped_column(JSON)  # 관심분야 키 + 카테고리 키
     title: Mapped[str] = mapped_column(String(500))
     url: Mapped[str] = mapped_column(String(1000), unique=True)
     body_text: Mapped[str] = mapped_column(Text, default="")
@@ -28,7 +35,7 @@ class Notice(Base):
     criteria: Mapped[dict | None] = mapped_column(JSON)
     summary: Mapped[str] = mapped_column(Text, default="")
     is_demo: Mapped[bool] = mapped_column(default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     attachments: Mapped[list["Attachment"]] = relationship(back_populates="notice")
 
 
@@ -49,7 +56,7 @@ class Device(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     push_token: Mapped[str] = mapped_column(String(200), unique=True)
     tags: Mapped[dict] = mapped_column(JSON, default=dict)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
 
 
 class NotificationLog(Base):
@@ -60,4 +67,4 @@ class NotificationLog(Base):
     notice_id: Mapped[int] = mapped_column(ForeignKey("notices.id"))
     kind: Mapped[str] = mapped_column(String(20))  # new|changed|d3
     content_hash: Mapped[str] = mapped_column(String(64))
-    sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
