@@ -43,7 +43,13 @@ def run(sources: list[str], limit: int, dry_run: bool) -> dict:
         with SessionLocal() as db:
             for key in sources:
                 ad = ADAPTERS[key]
-                for item in ad.fetch_list(client, limit):
+                try:
+                    listing = ad.fetch_list(client, limit)
+                except Exception as e:  # 게시판 하나(로그인 요구·구조 변경 등)가 다른 게시판을 멈추지 않게
+                    stats["error"] += 1
+                    print(f"[{key}] LIST ERROR {ad.list_url}: {e}")
+                    continue
+                for item in listing:
                     try:
                         raw = ad.fetch_detail(client, item)
                         attachment_texts = read_attachments(client, raw)
