@@ -9,6 +9,7 @@ class MainSiteAdapter(KhuCmsAdapter):
     site = "https://www.khu.ac.kr"
     board_path = "/kor/user/bbs/BMSR00040/"
     list_rows = "table tbody tr"
+    canonical_menu_no = "200316"  # 탭이 달라도 같은 boardId면 같은 공지 → 일반 탭 주소로 통일
     parse_detail = staticmethod(parse_detail_board02)
 
 

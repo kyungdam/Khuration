@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from ..base import Adapter, ListItem, PoliteClient, RawNotice
 from .khu_cms import block_text, drop_disallowed_images
+from .urls import normalize_url
 
 BASE = "https://aladdin.khu.ac.kr/portfolio/ptfol/imng/icmpNsbjtPgm/"
 SSO_PARAM = "ssoReChk=ok"
@@ -26,7 +27,7 @@ class AladdinItem(ListItem):
 
 
 def detail_url(seq: str) -> str:
-    return f"{BASE}findIcmpNsbjtPgmInfo.do?encSddpbSeq={seq}"
+    return normalize_url(f"{BASE}findIcmpNsbjtPgmInfo.do?encSddpbSeq={seq}")
 
 
 def fetch(client: PoliteClient, url: str) -> str:

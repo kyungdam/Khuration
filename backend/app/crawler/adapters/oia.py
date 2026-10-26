@@ -7,6 +7,7 @@ from .khu_cms import KhuCmsAdapter
 class OiaAdapter(KhuCmsAdapter):
     site = "https://oia.khu.ac.kr"
     board_path = "/oiak_kor/user/bbs/BMSR00040/"
+    # canonical_menu_no 없음: 대표 홈페이지와 달리 파견 글을 Notice menuNo로 열면 빈 화면이 나온다 (2026-10 확인)
 
 
 OIA_BOARDS = {

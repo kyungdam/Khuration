@@ -10,6 +10,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 
 from ..base import Adapter, ListItem, PoliteClient, RawAttachment, RawNotice, guess_kind
+from .urls import normalize_url
 
 VIEW_ID = re.compile(r"view\('(\d+)'")
 BLOCKS = ["p", "div", "li", "tr", "h1", "h2", "h3", "h4", "table"]
@@ -114,6 +115,9 @@ class KhuCmsAdapter(Adapter):
     site = ""        # 예: "https://eng.khu.ac.kr"
     board_path = ""  # 예: "/eng_kor/user/bbs/BMSR00040/"
     menu_no = ""
+    # 한 사이트의 게시판(탭)끼리 boardId를 같이 쓰고 어느 menuNo로 열어도 같은 글이 열린다.
+    # 같은 글이 두 탭에 올라와도 URL이 하나가 되게 상세 URL은 이 menuNo로 만든다 (None이면 menu_no)
+    canonical_menu_no: str | None = None
     list_rows = "div.bbs_tbl-st1 table tbody tr"
     parse_detail = staticmethod(parse_detail)
 
@@ -130,7 +134,8 @@ class KhuCmsAdapter(Adapter):
 
     def detail_url(self, board_id: str) -> str:
         """같은 공지는 늘 같은 URL (페이지 번호·검색 조건 등은 넣지 않음)"""
-        return f"{self.site}{self.board_path}view.do?menuNo={self.menu_no}&boardId={board_id}"
+        menu = self.canonical_menu_no or self.menu_no
+        return normalize_url(f"{self.site}{self.board_path}view.do?menuNo={menu}&boardId={board_id}")
 
     def fetch_list(self, client: PoliteClient, limit: int) -> list[ListItem]:
         return parse_list(client.get(self.list_url).text, limit, self.detail_url, self.list_rows)
