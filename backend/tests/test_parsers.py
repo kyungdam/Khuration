@@ -67,6 +67,16 @@ def test_hwpx_paragraphs_and_tables():
     assert res.method == "hwpx" and "3~4학년" in res.text
 
 
+def test_docx():
+    ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+    xml = f'<w:document {ns}><w:body><w:p><w:r><w:t>개인정보 </w:t></w:r><w:r><w:t>동의서</w:t></w:r></w:p><w:p><w:r><w:t>동의함</w:t></w:r></w:p></w:body></w:document>'
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("word/document.xml", xml)
+    res = parse_attachment(buf.getvalue(), "동의서.docx")
+    assert res.method == "docx" and res.text == "개인정보 동의서\n동의함"
+
+
 def test_detect_and_unsupported():
     assert detect(b"%PDF-1.7 ...", "a.bin") == "pdf"
     assert detect(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1" + b"\0" * 8, "x.hwp") == "hwp5"

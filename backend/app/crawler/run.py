@@ -13,11 +13,15 @@ from .extract import extract
 from .store import upsert_notice
 
 
+READABLE = (".hwp", ".hwpx", ".pdf", ".docx")
+
+
 def read_attachments(client: PoliteClient, raw) -> dict[str, str]:
     """HWP/HWPX/PDF 첨부를 내려받아 텍스트로. 스캔본·이미지는 OCR 필요로 표시만 하고 건너뜀."""
     texts: dict[str, str] = {}
     for att in raw.attachments:
-        if att.kind not in ("hwp", "hwpx", "pdf"):
+        # 형식은 파서가 파일 앞부분으로 다시 판별한다. 이미지는 OCR(비전 모델) 연결 전까지 건너뜀
+        if att.kind == "image" or not att.filename.lower().endswith(READABLE):
             continue
         try:
             res = parse_attachment(client.get(att.url).content, att.filename)

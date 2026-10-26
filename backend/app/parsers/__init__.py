@@ -13,7 +13,7 @@ SCANNED_CHARS_PER_PAGE = 40  # PDF 페이지당 글자가 이보다 적으면 �
 @dataclass
 class ParseResult:
     text: str
-    method: str  # hwp5 | hwpx | pdf | image | none
+    method: str  # hwp5 | hwpx | docx | pdf | image | none
     needs_ocr: bool = False  # 스캔 PDF·이미지: 비전 모델(ChatKHU)로 읽어야 함
     note: str = ""  # 배포용 문서, 암호, 손상 등 실패 사유
 
@@ -25,7 +25,9 @@ def detect(data: bytes, filename: str) -> str:
     if head.startswith(b"%PDF"):
         return "pdf"
     if head.startswith(b"PK"):
-        return "hwpx" if filename.lower().endswith(".hwpx") or b"hwpml" in data[:4096].lower() or _zip_has(data, "Contents/") else "zip"
+        if filename.lower().endswith(".hwpx") or b"hwpml" in data[:4096].lower() or _zip_has(data, "Contents/"):
+            return "hwpx"
+        return "docx" if _zip_has(data, "word/document.xml") else "zip"
     if head.startswith((b"\x89PNG", b"\xff\xd8\xff", b"GIF8")) or (head[:4] == b"RIFF" and data[8:12] == b"WEBP"):
         return "image"
     return "unknown"
@@ -66,6 +68,10 @@ def parse_attachment(data: bytes, filename: str) -> ParseResult:
             from .hwpx import extract_hwpx
 
             return ParseResult(clean(extract_hwpx(data)), "hwpx")
+        if kind == "docx":
+            from .docx import extract_docx
+
+            return ParseResult(clean(extract_docx(data)), "docx")
         if kind == "pdf":
             from .pdf import extract_pdf
 
