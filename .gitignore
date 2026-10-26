@@ -229,3 +229,4 @@ node_modules/
 
 # OCR 캐시
 backend/.ocr_cache/
+backend/.extract_cache/

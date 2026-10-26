@@ -1,6 +1,7 @@
 // 앱 화면은 HTML(web/index.html)로 바뀌었다. 이 화면은 그 HTML을 띄우는 껍데기(WebView)다.
 // - HTML은 백엔드가 /web/ 으로 내려준다 → 서버 주소는 src/config.ts(app/.env) 한 곳에서만 바꾼다.
 // - 공지 원문·신청 링크는 HTML이 postMessage로 넘기면 기기 브라우저로 연다.
+// - "캘린더에 저장"은 HTML이 addCalendar를 보내면 폰 캘린더에도 넣고, 결과를 window.KhuNative로 돌려준다.
 // 예전 Expo 화면(onboarding, (tabs) 등)은 팀 결정 전까지 지우지 않고 남겨 둔다.
 import * as WebBrowser from "expo-web-browser";
 import React, { useRef, useState } from "react";
@@ -9,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 
 import { API_BASE_URL } from "../config";
+import { addDeadlineToPhoneCalendar } from "../nativeCalendar";
 
 const BASE = API_BASE_URL.replace(/\/$/, "");
 const WEB_URL = `${BASE}/web/`;
@@ -24,12 +26,25 @@ export default function WebShell() {
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
 
-  const onMessage = (e: WebViewMessageEvent) => {
+  const reply = (payload: object) => {
+    ref.current?.injectJavaScript(`window.KhuNative && window.KhuNative(${JSON.stringify(payload)}); true;`);
+  };
+
+  const onMessage = async (e: WebViewMessageEvent) => {
+    let m: { type?: string; url?: string; id?: string; title?: string; date?: string };
     try {
-      const m = JSON.parse(e.nativeEvent.data) as { type?: string; url?: string };
-      if (m.type === "openUrl" && m.url) openExternal(m.url);
+      m = JSON.parse(e.nativeEvent.data);
     } catch {
-      // HTML이 보낸 메시지가 JSON이 아니면 무시
+      return; // HTML이 보낸 메시지가 JSON이 아니면 무시
+    }
+    if (m.type === "openUrl" && m.url) openExternal(m.url);
+    if (m.type === "addCalendar" && m.id && m.title && m.date) {
+      try {
+        await addDeadlineToPhoneCalendar(m.title, m.date, m.url ?? "");
+        reply({ type: "calendarResult", id: m.id, ok: true, message: "폰 캘린더에도 추가했어요 (마감 3일 전 알림)" });
+      } catch (err) {
+        reply({ type: "calendarResult", id: m.id, ok: false, message: err instanceof Error ? err.message : "폰 캘린더에 추가하지 못했어요" });
+      }
     }
   };
 

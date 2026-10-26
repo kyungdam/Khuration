@@ -6,6 +6,17 @@ from app.crawler.base import RawNotice
 from app.crawler.extract_llm import extract_with_llm, resolve_deadline, sanitize_criteria, to_extracted
 from app.llm import client
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolated_extract_cache(monkeypatch, tmp_path):
+    """테스트가 실제 추출 캐시(backend/.extract_cache)를 읽거나 쓰지 않게"""
+    from app.crawler import extract_llm
+
+    monkeypatch.setattr(extract_llm, "CACHE_DIR", tmp_path / "extract_cache")
+
+
 RAW = RawNotice(source_name="테스트", url="https://example.com/n/1", title="[SSAFY] 17기 모집", body_text="본문",
                 posted_at=datetime(2026, 10, 26))
 
@@ -76,3 +87,18 @@ def test_open_to_all_only_true_or_none():
     assert sanitize_criteria({"open_to_all": "yes"})["open_to_all"] is None
     assert sanitize_criteria({"open_to_all": False})["open_to_all"] is None
     assert sanitize_criteria({})["open_to_all"] is None
+
+
+def test_extraction_is_cached(monkeypatch, tmp_path):
+    calls = []
+
+    def fake(*a, **k):
+        calls.append(1)
+        return '{"deadline":"11-09","summary":"요약"}'
+
+    monkeypatch.setattr(client, "chat", fake)
+    a = extract_with_llm(RAW, "같은 본문")
+    b = extract_with_llm(RAW, "같은 본문")
+    assert len(calls) == 1 and a.summary == b.summary == "요약" and b.deadline == a.deadline
+    extract_with_llm(RAW, "바뀐 본문")
+    assert len(calls) == 2  # 내용이 바뀌면 다시 추출

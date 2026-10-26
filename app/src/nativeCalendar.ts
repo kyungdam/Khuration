@@ -1,0 +1,28 @@
+// 폰 캘린더에 공지 마감일을 종일 일정으로 넣는다 (3일 전 알림).
+// SDK 58의 새 Calendar API는 Expo Go에서 안 되므로, Expo Go에 들어 있는 legacy API를 쓴다.
+import * as Calendar from "expo-calendar/legacy";
+import { Platform } from "react-native";
+
+export async function addDeadlineToPhoneCalendar(title: string, date: string, url: string): Promise<string> {
+  const { status } = await Calendar.requestCalendarPermissionsAsync();
+  if (status !== "granted") throw new Error("캘린더 권한을 허용해야 폰 캘린더에 넣을 수 있어요");
+
+  let calendarId: string | undefined;
+  if (Platform.OS === "ios") {
+    calendarId = (await Calendar.getDefaultCalendarAsync()).id;
+  } else {
+    const cals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+    calendarId = (cals.find((c) => c.allowsModifications && c.isPrimary) ?? cals.find((c) => c.allowsModifications))?.id;
+  }
+  if (!calendarId) throw new Error("쓸 수 있는 캘린더가 없어요 (구글 계정 캘린더를 확인해 주세요)");
+
+  const [y, m, d] = date.split("-").map(Number);
+  return Calendar.createEventAsync(calendarId, {
+    title: `[마감] ${title}`,
+    startDate: new Date(y, m - 1, d),
+    endDate: new Date(y, m - 1, d + 1),
+    allDay: true,
+    notes: url || undefined,
+    alarms: [{ relativeOffset: -60 * 24 * 3 }],
+  });
+}
