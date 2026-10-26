@@ -102,7 +102,7 @@ def test_pdf_text_and_scanned():
     assert parse_attachment(blank.tobytes(), "scan.pdf").needs_ocr is True
 
 
-@pytest.mark.parametrize("name", sorted(p.name for p in FIX.glob("*")) if FIX.exists() else [])
+@pytest.mark.parametrize("name", sorted(p.name for p in FIX.glob("*") if p.is_file()) if FIX.exists() else [])  # 하위 폴더(crawler/ 등)는 제외
 def test_real_fixtures_parse(name):
     """tests/fixtures/ 에 실제 공고 파일(hwp/hwpx/pdf)을 넣으면 자동으로 검사"""
     if name.endswith((".html", ".htm", ".json", ".md")):

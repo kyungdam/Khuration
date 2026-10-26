@@ -1,0 +1,77 @@
+{
+ "fixture_day": "2026-10-27",
+ "boards": {
+  "eng": {
+   "first_url": "https://eng.khu.ac.kr/eng_kor/user/bbs/BMSR00040/view.do?menuNo=17100020&boardId=557542",
+   "first_title": "2026학년도 동계 계절학기 운영 및 강좌 개설 안내",
+   "view_url": "https://eng.khu.ac.kr/eng_kor/user/bbs/BMSR00040/view.do?menuNo=17100020&boardId=557542",
+   "view_title": "2026학년도 동계 계절학기 운영 및 강좌 개설 안내",
+   "view_attachments": 0,
+   "view_images": 1
+  },
+  "chemeng": {
+   "first_url": "https://chemeng.khu.ac.kr/chemeng/user/bbs/BMSR00040/view.do?menuNo=17600017&boardId=557620",
+   "first_title": "[공과대학] 공과대학 특성화 장학 프로그램 참여학생 모집 안내",
+   "view_url": "https://chemeng.khu.ac.kr/chemeng/user/bbs/BMSR00040/view.do?menuNo=17600017&boardId=557620",
+   "view_title": "[공과대학] 공과대학 특성화 장학 프로그램 참여학생 모집 안내",
+   "view_attachments": 2,
+   "view_images": 1
+  },
+  "main": {
+   "first_url": "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=323360",
+   "first_title": "[국제교육원] ★등록마감임박★ 2026-5차 가을 정규 외국어 강좌 모집 공지",
+   "view_url": "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=323360",
+   "view_title": "[국제교육원] ★등록마감임박★ 2026-5차 가을 정규 외국어 강좌 모집 공지",
+   "view_attachments": 0,
+   "view_images": 2
+  },
+  "main_academic": {
+   "first_url": "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=323376",
+   "first_title": "[공통] 2026학년도 동계 계절학기 수업운영 안내",
+   "view_url": "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=323316",
+   "view_title": "2027학년도 1학기 수강신청제도 변경 안내",
+   "view_attachments": 1,
+   "view_images": 1
+  },
+  "main_scholarship": {
+   "first_url": "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=323410",
+   "first_title": "공과대학 특성화 장학 프로그램 참여학생 모집 안내",
+   "view_url": "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=323410",
+   "view_title": "공과대학 특성화 장학 프로그램 참여학생 모집 안내",
+   "view_attachments": 2,
+   "view_images": 1
+  },
+  "main_work": {
+   "first_url": "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=322678",
+   "first_title": "[국가근로] 2026학년도 2학기 국가근로장학 자체선발기준 안내(서울캠퍼스)",
+   "view_url": "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=322678",
+   "view_title": "[국가근로] 2026학년도 2학기 국가근로장학 자체선발기준 안내(서울캠퍼스)",
+   "view_attachments": 1,
+   "view_images": 0
+  },
+  "oia": {
+   "first_url": "https://oia.khu.ac.kr/oiak_kor/user/bbs/BMSR00040/view.do?menuNo=5800010&boardId=556046",
+   "first_title": "풀브라이트 미국 유학/연구 장학금 설명회 안내",
+   "view_url": "https://oia.khu.ac.kr/oiak_kor/user/bbs/BMSR00040/view.do?menuNo=5800010&boardId=556046",
+   "view_title": "풀브라이트 미국 유학/연구 장학금 설명회 안내",
+   "view_attachments": 2,
+   "view_images": 2
+  },
+  "oia_outgoing": {
+   "first_url": "https://oia.khu.ac.kr/oiak_kor/user/bbs/BMSR00040/view.do?menuNo=5800012&boardId=556358",
+   "first_title": "[국제교류팀] 2026 동계 SDGs 국제화연수 (Lincoln University) 선발 공고",
+   "view_url": "https://oia.khu.ac.kr/oiak_kor/user/bbs/BMSR00040/view.do?menuNo=5800012&boardId=556358",
+   "view_title": "[국제교류팀] 2026 동계 SDGs 국제화연수 (Lincoln University) 선발 공고",
+   "view_attachments": 2,
+   "view_images": 1
+  },
+  "aladdin": {
+   "first_url": "https://aladdin.khu.ac.kr/portfolio/ptfol/imng/icmpNsbjtPgm/findIcmpNsbjtPgmInfo.do?encSddpbSeq=f0127b8880173ddf1712aa3d60d318c0",
+   "first_title": "KHU-makers 14기 - AI 활용 오픈랩 홍보 기획단",
+   "view_url": "https://aladdin.khu.ac.kr/portfolio/ptfol/imng/icmpNsbjtPgm/findIcmpNsbjtPgmInfo.do?encSddpbSeq=f0127b8880173ddf1712aa3d60d318c0",
+   "view_title": "KHU-makers 14기 - AI 활용 오픈랩 홍보 기획단",
+   "view_attachments": 0,
+   "view_images": 4
+  }
+ }
+}
