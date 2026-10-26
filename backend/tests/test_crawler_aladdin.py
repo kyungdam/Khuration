@@ -1,5 +1,5 @@
 """알라딘 어댑터 테스트. tests/fixtures/aladdin_*.html은 실제 사이트에서 저장한 HTML (네트워크 없이 돈다)."""
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -8,6 +8,7 @@ import pytest
 from app.crawler.adapters import ADAPTERS
 from app.crawler.adapters.aladdin import AladdinAdapter, fetch, parse_detail, parse_list
 
+FIXTURE_DAY = date(2026, 10, 27)  # 픽스처 HTML을 저장한 날 (90일 필터 기준일 고정)
 FIX = Path(__file__).parent / "fixtures"
 
 
@@ -27,7 +28,7 @@ class FakeClient:
 
 
 def test_list_clean_url_and_card():
-    items = parse_list(_html("aladdin_list.html"), 20)
+    items = parse_list(_html("aladdin_list.html"), 20, today=FIXTURE_DAY)
     assert len(items) == 10
     first = items[0]
     assert first.url == ("https://aladdin.khu.ac.kr/portfolio/ptfol/imng/icmpNsbjtPgm/"
@@ -40,7 +41,7 @@ def test_list_clean_url_and_card():
 
 
 def test_detail_body_without_attachments():
-    item = parse_list(_html("aladdin_list.html"), 1)[0]
+    item = parse_list(_html("aladdin_list.html"), 1, today=FIXTURE_DAY)[0]
     raw = parse_detail(_html("aladdin_view.html"), item, "알라딘 비교과")
     lines = raw.body_text.splitlines()
     assert raw.attachments == []  # 첨부 다운로드는 로그인 필요
@@ -67,7 +68,9 @@ def test_fetch_stops_on_login_page(final):
         fetch(FakeClient("<html></html>", final_url=final), "https://aladdin.khu.ac.kr/x/a.do")
 
 
-def test_fetch_list_stops_when_page_repeats():
+def test_fetch_list_stops_when_page_repeats(monkeypatch):
+    from app import clock
+    monkeypatch.setattr(clock, "real_utcnow", lambda: datetime(2026, 10, 27, 3))  # 90일 필터 기준일 고정
     c = FakeClient(_html("aladdin_list.html"))
     items = AladdinAdapter().fetch_list(c, 25)
     assert len(items) == 10 and len(c.urls) == 2  # 2페이지가 같은 목록이면 멈춤

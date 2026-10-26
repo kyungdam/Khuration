@@ -1,5 +1,5 @@
 """국제교류처 어댑터 파싱 테스트. tests/fixtures/oia_*.html은 실제 게시판에서 저장한 HTML."""
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from app.crawler.adapters import ADAPTERS
@@ -7,6 +7,7 @@ from app.crawler.adapters.khu_cms import parse_detail, parse_list
 from app.crawler.adapters.oia import OIA_BOARDS
 from app.crawler.base import ListItem
 
+FIXTURE_DAY = date(2026, 10, 27)  # 픽스처 HTML을 저장한 날 (90일 필터 기준일 고정)
 FIX = Path(__file__).parent / "fixtures"
 AD = OIA_BOARDS["oia_outgoing"]
 
@@ -21,11 +22,11 @@ def test_registered_boards():
 
 
 def test_list():
-    items = parse_list(_html("oia_list_out.html"), 20, AD.detail_url, AD.list_rows)
-    assert len(items) == 10
-    assert items[1].url == "https://oia.khu.ac.kr/oiak_kor/user/bbs/BMSR00040/view.do?menuNo=5800012&boardId=556358"
-    assert items[1].title == "[국제교류팀] 2026 동계 SDGs 국제화연수 (Lincoln University) 선발 공고"  # "공통" 표시 제거
-    assert items[1].posted_at == datetime(2026, 10, 13)
+    items = parse_list(_html("oia_list_out.html"), 20, AD.detail_url, AD.list_rows, today=FIXTURE_DAY)
+    assert len(items) == 4  # 10건 중 6건(06-05~07-21, 고정 글 포함)은 90일이 넘어 뺀다
+    assert items[0].url == "https://oia.khu.ac.kr/oiak_kor/user/bbs/BMSR00040/view.do?menuNo=5800012&boardId=556358"
+    assert items[0].title == "[국제교류팀] 2026 동계 SDGs 국제화연수 (Lincoln University) 선발 공고"  # "공통" 표시 제거
+    assert items[0].posted_at == datetime(2026, 10, 13)
 
 
 def test_detail_pdf_and_docx():

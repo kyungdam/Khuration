@@ -1,11 +1,12 @@
 """공과대학 어댑터 파싱 테스트. tests/fixtures/eng_*.html은 실제 게시판에서 저장한 HTML (네트워크 없이 돈다)."""
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from app.crawler.adapters.engineering import EngineeringAdapter
 from app.crawler.adapters.khu_cms import parse_detail, parse_list
 from app.crawler.base import ListItem
 
+FIXTURE_DAY = date(2026, 10, 27)  # 픽스처 HTML을 저장한 날 (90일 필터 기준일 고정)
 FIX = Path(__file__).parent / "fixtures"
 AD = EngineeringAdapter()
 
@@ -15,14 +16,14 @@ def _html(name):
 
 
 def test_list_skips_main_site_links_and_cleans_url():
-    items = parse_list(_html("eng_list.html"), 20, AD.detail_url)
+    items = parse_list(_html("eng_list.html"), 20, AD.detail_url, today=FIXTURE_DAY)
     assert len(items) == 10  # 고정 글 5개는 대표 홈페이지 링크라 제외
     first = items[0]
     assert first.url == "https://eng.khu.ac.kr/eng_kor/user/bbs/BMSR00040/view.do?menuNo=17100020&boardId=557542"
     assert first.title == "2026학년도 동계 계절학기 운영 및 강좌 개설 안내"  # 캠퍼스 표시 "All" 제거
     assert first.posted_at == datetime(2026, 10, 26)
     assert all("eng.khu.ac.kr" in i.url and "pageIndex" not in i.url for i in items)
-    assert len(parse_list(_html("eng_list.html"), 3, AD.detail_url)) == 3
+    assert len(parse_list(_html("eng_list.html"), 3, AD.detail_url, today=FIXTURE_DAY)) == 3
 
 
 def test_detail_with_attachment():

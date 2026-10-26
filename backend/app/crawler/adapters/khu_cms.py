@@ -4,16 +4,26 @@ site·board_path·menu_no만 바꾼다.
 상단 고정 글 중 다른 사이트(예: 대표 홈페이지 www.khu.ac.kr) 공지로 바로 가는 링크는 그 사이트 어댑터 몫이라 건너뛴다.
 상세: article.bbs-view (h2.t 제목, header .info 등록일·첨부파일, .bbs-view_c 본문)."""
 import re
-from datetime import datetime
+from datetime import date, datetime
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
+from ... import clock
 from ..base import Adapter, ListItem, PoliteClient, RawAttachment, RawNotice, guess_kind
 from .urls import normalize_url
 
 VIEW_ID = re.compile(r"view\('(\d+)'")
 BLOCKS = ["p", "div", "li", "tr", "h1", "h2", "h3", "h4", "table"]
+MAX_AGE_DAYS = 90  # 게시일이 이보다 오래된 글은 고정 글이어도 목록에서 뺀다 (예: 화학공학과 2월 신입생 OT 고정 글)
+
+
+def too_old(posted: datetime | None, today: date | None = None) -> bool:
+    """게시일을 모르면 빼지 않는다. today는 테스트용 (기본: 오늘 KST, 시연 시계와 무관한 실제 날짜)"""
+    if posted is None:
+        return False
+    today = today or clock.kst_date(clock.real_utcnow())
+    return (today - posted.date()).days > MAX_AGE_DAYS
 
 
 def parse_date(text: str) -> datetime | None:
@@ -36,7 +46,8 @@ def block_text(el) -> str:
     return "\n".join(ln for ln in lines if ln)
 
 
-def parse_list(html: str, limit: int, detail_url, rows: str = "div.bbs_tbl-st1 table tbody tr") -> list[ListItem]:
+def parse_list(html: str, limit: int, detail_url, rows: str = "div.bbs_tbl-st1 table tbody tr",
+               today: date | None = None) -> list[ListItem]:
     soup = BeautifulSoup(html, "html.parser")
     items, seen = [], set()
     for row in soup.select(rows):
@@ -48,8 +59,10 @@ def parse_list(html: str, limit: int, detail_url, rows: str = "div.bbs_tbl-st1 t
         for tag in a.select("span.txtBox01"):  # All/Seoul/Global 캠퍼스 표시
             tag.decompose()
         dates = (parse_date(td.get_text(strip=True)) for td in row.select("td"))  # 등록일 칸 위치가 사이트마다 다름
-        items.append(ListItem(url=detail_url(m.group(1)), title=a.get_text(" ", strip=True),
-                              posted_at=next((d for d in dates if d), None)))
+        posted = next((d for d in dates if d), None)
+        if too_old(posted, today):
+            continue
+        items.append(ListItem(url=detail_url(m.group(1)), title=a.get_text(" ", strip=True), posted_at=posted))
         if len(items) >= limit:
             break
     return items

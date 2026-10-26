@@ -5,13 +5,13 @@
 import json
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
 from ..base import Adapter, ListItem, PoliteClient, RawNotice
-from .khu_cms import block_text, drop_disallowed_images
+from .khu_cms import block_text, drop_disallowed_images, too_old
 from .urls import normalize_url
 
 BASE = "https://aladdin.khu.ac.kr/portfolio/ptfol/imng/icmpNsbjtPgm/"
@@ -42,7 +42,7 @@ def _line(el) -> str:
     return re.sub(r"\s+", " ", el.get_text(" ", strip=True)) if el else ""
 
 
-def parse_list(html: str, limit: int) -> list[AladdinItem]:
+def parse_list(html: str, limit: int, today: date | None = None) -> list[AladdinItem]:
     soup = BeautifulSoup(html, "html.parser")
     items = []
     for li in soup.select("div.lica_wrap > ul > li"):
@@ -58,8 +58,10 @@ def parse_list(html: str, limit: int) -> list[AladdinItem]:
                  _line(li.select_one("p.desc")),
                  *(f"{k}: {v}" for k, v in info.items())]
         m = DOT_DATE.search(info.get("신청기간", ""))  # 게시일 칸이 없어 신청 시작일을 쓴다
-        items.append(AladdinItem(url=detail_url(seq), title=_line(a),
-                                 posted_at=datetime.strptime(m.group(0), "%Y.%m.%d") if m else None,
+        posted = datetime.strptime(m.group(0), "%Y.%m.%d") if m else None
+        if too_old(posted, today):  # 신청 시작이 90일보다 오래된 프로그램은 뺀다
+            continue
+        items.append(AladdinItem(url=detail_url(seq), title=_line(a), posted_at=posted,
                                  card="\n".join(ln for ln in lines if ln and not ln.endswith(": "))))
         if len(items) >= limit:
             break

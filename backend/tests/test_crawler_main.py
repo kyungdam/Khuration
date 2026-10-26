@@ -1,5 +1,5 @@
 """대표 홈페이지 공지 어댑터 파싱 테스트. tests/fixtures/main_*.html은 실제 게시판에서 저장한 HTML."""
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from bs4 import BeautifulSoup
@@ -9,6 +9,7 @@ from app.crawler.adapters.khu_cms import block_text, parse_detail_board02, parse
 from app.crawler.adapters.main_site import MAIN_BOARDS
 from app.crawler.base import ListItem
 
+FIXTURE_DAY = date(2026, 10, 27)  # 픽스처 HTML을 저장한 날 (90일 필터 기준일 고정)
 FIX = Path(__file__).parent / "fixtures"
 AD = MAIN_BOARDS["main"]
 
@@ -23,7 +24,7 @@ def test_registered_boards():
 
 
 def test_list_date_column_and_clean_title():
-    items = parse_list(_html("main_list.html"), 20, AD.detail_url, AD.list_rows)
+    items = parse_list(_html("main_list.html"), 20, AD.detail_url, AD.list_rows, today=FIXTURE_DAY)
     assert len(items) == 10
     first = items[0]
     assert first.url == "https://www.khu.ac.kr/kor/user/bbs/BMSR00040/view.do?menuNo=200316&boardId=323360"
