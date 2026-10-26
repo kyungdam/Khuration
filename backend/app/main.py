@@ -1,7 +1,10 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import models  # noqa: F401  (모델 등록)
 from .config import settings
@@ -37,3 +40,12 @@ app.include_router(notices.router)
 app.include_router(ai.router)
 if settings.app_mode == "demo":
     app.include_router(demo.router, prefix="/demo")
+
+# 앱 화면(HTML). 폰의 Expo Go(WebView)나 브라우저에서 http://<PC IP>:8000/web/ 으로 연다.
+WEB_DIR = Path(__file__).resolve().parents[2] / "web"
+if WEB_DIR.is_dir():
+    app.mount("/web", StaticFiles(directory=WEB_DIR, html=True), name="web")
+
+    @app.get("/", include_in_schema=False)
+    def root():
+        return RedirectResponse("/web/")

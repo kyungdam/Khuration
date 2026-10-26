@@ -61,7 +61,10 @@ def test_flow():
         assert c.delete("/devices", headers=h2).json()["deleted"]
 
 
-def test_notices_list_detail_and_chat():
+def test_notices_list_detail_and_chat(monkeypatch):
+    from app.llm import client
+
+    monkeypatch.setattr(client, "available", lambda: False)  # 실제 ChatKHU를 부르지 않는다
     with TestClient(app) as c:
         c.post("/devices", json={"push_token": TOKEN, "tags": TAGS})
         allv = c.get("/notices").json()
@@ -102,3 +105,16 @@ def test_chat_falls_back_when_llm_fails(monkeypatch):
     monkeypatch.setattr(client, "chat", boom)
     out = chat_mod.answer("AI 공모전", [], {})
     assert out["engine"] == "rule" and "찾지 못했어요" in out["answer"]
+
+
+def test_web_app_is_served():
+    """앱 화면 HTML(web/index.html)을 서버가 /web/ 으로 내려준다."""
+    from pathlib import Path
+
+    if not (Path(__file__).resolve().parents[2] / "web" / "index.html").exists():
+        import pytest
+
+        pytest.skip("web/index.html 없음")
+    with TestClient(app) as c:
+        r = c.get("/web/")
+        assert r.status_code == 200 and "KHURATION" in r.text

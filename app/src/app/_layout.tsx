@@ -1,37 +1,16 @@
-import { Hahmlet_700Bold } from "@expo-google-fonts/hahmlet";
-import { NotoSansKR_400Regular, NotoSansKR_500Medium, NotoSansKR_700Bold } from "@expo-google-fonts/noto-sans-kr";
-import { useFonts } from "expo-font";
-import * as Notifications from "expo-notifications";
-import { router, Stack } from "expo-router";
+// 앱 화면은 web/index.html(HTML)이고, 여기서는 그걸 띄우는 WebView 하나만 쓴다.
+// expo-notifications 등은 Expo Go(SDK 58, Android)에서 불러오기만 해도 오류가 나서 넣지 않는다.
+// 예전 Expo 화면은 src/legacy/ 로 옮겨 보관 중 (라우트 아님).
+import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect } from "react";
+import React from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { AppProvider } from "../store";
-import { colors } from "../theme";
-
 export default function RootLayout() {
-  const [loaded] = useFonts({ Hahmlet_700Bold, NotoSansKR_400Regular, NotoSansKR_500Medium, NotoSansKR_700Bold });
-
-  // 알림을 누르면 해당 공지로 이동 (딥링크)
-  useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener((r) => {
-      const id = (r.notification.request.content.data as { notice_id?: number } | undefined)?.notice_id;
-      if (id) router.push(`/notice/${id}`);
-    });
-    return () => sub.remove();
-  }, []);
-
-  if (!loaded) return null;
   return (
     <SafeAreaProvider>
-      <AppProvider>
-        <StatusBar style="dark" />
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
-          <Stack.Screen name="index" options={{ contentStyle: { backgroundColor: colors.primaryDark } }} />
-          <Stack.Screen name="ai" options={{ animation: "slide_from_bottom" }} />
-        </Stack>
-      </AppProvider>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#FAF7F5" } }} />
     </SafeAreaProvider>
   );
 }

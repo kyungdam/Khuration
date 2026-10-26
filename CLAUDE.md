@@ -4,7 +4,12 @@
 
 ## 구조
 - /backend: FastAPI + SQLAlchemy (로컬 SQLite, 배포 Postgres)
-- /app: Expo (React Native, TypeScript). UI는 Figma 디자인을 구현
+- /web/index.html: 앱 화면 전체 (HTML/CSS/JS 한 파일). 디자인 기준은 이 HTML이다 (Figma 시안은 더 이상 기준 아님)
+  - 백엔드가 `/web/` 으로 내려준다 (backend/app/main.py). 폰 브라우저로 `http://<PC IP>:8000/web/` 을 열어도 된다
+  - `?mock=1` 을 붙이면 서버 없이 목업 데이터로 동작 (화면 확인용)
+- /app: Expo Go 껍데기. `src/app/index.tsx` 가 WebView로 `/web/` 을 띄우고, 원문·신청 링크는 기기 브라우저로 연다
+  - 서버 주소는 `app/.env` 의 `EXPO_PUBLIC_API_BASE_URL` 한 곳에서만 바꾼다
+  - 예전 Expo 화면(src/app/onboarding.tsx, (tabs)/ 등)은 팀 결정 전까지 지우지 않는다
 
 ## 절대 규칙
 - 이름·학번·정확한 학점은 서버/DB에 저장하지 않는다. 서버는 푸시 토큰 + 익명 조건 태그만 받는다.
@@ -31,8 +36,11 @@
 - 기능 하나씩(시드/API → 크롤러 → 파서 → 추출 → 매칭 → 푸시) 구현하고 테스트 후 다음으로.
 - 실행: cd backend && uvicorn app.main:app --reload --host 0.0.0.0
 
-## 앱 ↔ 서버 계약 (Figma 온보딩 기준)
-앱 로컬에만 저장: 이름, 정확한 평균 학점/직전 평점/취득 학점, '하고 싶은 활동' 원문.
+## 앱 ↔ 서버 계약 (web/index.html 기준)
+화면 코드는 `window.KhuApi` 만 부른다. 서버용 구현은 index.html 안의 "KHURATION API 클라이언트 — 우리 FastAPI 서버용" 스크립트.
+앱(기기 localStorage)에만 저장: 이름, 정확한 평균 학점/직전 평점/취득 학점, '하고 싶은 활동' 원문,
+북마크, 캘린더에 저장한 공지, 체크리스트, 마감 알림 설정, KHU AI 대화 기록.
+기기 토큰은 `web-<uuid>` (Expo 푸시 토큰 아님 → 원격 푸시 없음. 시연 알림은 앱 안 종 아이콘: 저장한 공지 중 마감 3일 이내).
 서버로 보내는 태그 (`POST /devices`, 헤더 없이 body로 push_token + tags):
 - campus: "seoul" | "global"
 - college, dept: 학과 선택 값 (college는 선택)
