@@ -3,8 +3,9 @@
 이 폴더에서 작업하는 사람(과 Claude Code)이 지킬 규칙. 루트 CLAUDE.md의 절대 규칙도 그대로 적용된다.
 
 ## 작업 범위
-- 수정해도 되는 곳: `backend/app/crawler/`(parsers 연결부 제외), `backend/tests/test_crawler*.py`, `backend/requirements.txt`(의존성 추가만)
-- 건드리지 않는 곳: `app/`(앱 화면), `backend/app/models.py`, `routers/`, `matching/`, `schemas.py`
+- 수정해도 되는 곳: `backend/app/crawler/adapters/`, `backend/tests/test_crawler_*.py`, `backend/tests/fixtures/crawler/`, `backend/scripts/`, 이 문서
+- 건드리지 않는 곳: `web/`, `app/`, `backend/app/llm/`, `rag/`, `matching/`, `routers/`, `models.py`, `schemas.py`, `main.py`, `config.py`, `seed_loader.py`,
+  `crawler/store.py`·`run.py`·`extract.py`·`extract_llm.py`·`base.py`, 루트 `CLAUDE.md`, `requirements.txt`
   - 모델/API를 바꿔야 하면 직접 고치지 말고 팀에 먼저 말한다 (앱과 계약이 깨짐)
 
 ## 흐름
@@ -46,6 +47,39 @@
 - 게시일 칸이 없다 → 목록의 신청기간 시작일을 `posted_at`으로 쓴다
 - 캠퍼스·신청대상·신청조건·신청학년은 목록 카드에만 있고 상세에는 없다 → 목록 카드 내용을 본문 앞에 붙인다 (조건 추출용)
 - robots.txt 없음 (404)
+
+## 목록 거르기·URL 규칙 (어댑터 공통)
+- 게시일이 90일보다 오래된 글은 고정 글이어도 목록에서 뺀다 (`khu_cms.MAX_AGE_DAYS`, 알라딘은 신청 시작일 기준). 게시일을 모르면 남긴다
+- robots.txt가 막는 경로(예: `com.khu.ac.kr/upload/`)의 본문 이미지는 `image_urls`에 넣지 않는다 (`drop_disallowed_images`, 판정은 `PoliteClient`)
+- 공지 URL은 `adapters/urls.normalize_url`을 거친다: `ssoReChk`·세션·추적(utm 등)·페이지·검색 파라미터와 빈 값, `#조각`을 뺀다. 파라미터 순서는 바꾸지 않는다 (바꾸면 저장된 URL이 전부 달라져 중복 저장)
+- 대표 홈페이지는 탭이 달라도 같은 `boardId`면 같은 글이라 상세 URL을 일반 탭(`menuNo=200316`)으로 통일한다. 국제교류처는 다른 menuNo로 열면 빈 화면이라 통일하지 않는다
+
+## 테스트
+- 오프라인: `tests/fixtures/crawler/<키>_list.html`, `<키>_view.html`, `manifest.json` (게시판마다 실제 HTML) → `tests/test_crawler_fixtures.py`
+  - 사이트 구조가 바뀌어 픽스처를 새로 받으면 manifest.json의 `fixture_day`와 첫 글·상세 글 정보도 같이 바꾼다
+- 실제 사이트 검사(게시판당 목록 1번 요청)는 평소 skip. 직접 확인할 때만 `backend`에서:
+  `$env:KHU_LIVE='1'; .venv\Scripts\python.exe -m pytest -q tests/test_crawler_fixtures.py -k live`
+
+## 자동 실행 (하루 2회, 14:00·20:00 KST)
+- 스크립트: `backend/scripts/crawl.ps1` — 크롤링 1회(`run.py --limit 20`, 저장) 후 로그를 `backend/logs/YYYY-MM-DD.log`에 이어 붙인다
+  - 로그는 `*.log`라 `.gitignore`에 이미 걸린다 (커밋 안 됨). 30일 지난 로그는 스크립트가 지운다
+  - 시험: `backend` 폴더 위(레포 루트)에서 `powershell -NoProfile -ExecutionPolicy Bypass -File backend\scripts\crawl.ps1 -DryRun -Limit 1`
+- 작업 스케줄러 등록 (크롤링을 돌릴 PC에서 PowerShell로 한 번만, `<레포>`는 Khuration 폴더 전체 경로):
+  ```powershell
+  $script = "<레포>\backend\scripts\crawl.ps1"
+  $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$script`""
+  $triggers = @((New-ScheduledTaskTrigger -Daily -At 14:00), (New-ScheduledTaskTrigger -Daily -At 20:00))
+  $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 1)
+  Register-ScheduledTask -TaskName "Khuration Crawl" -Action $action -Trigger $triggers -Settings $settings -Description "Khuration 공지 크롤링 (14:00, 20:00)"
+  ```
+  - `-StartWhenAvailable`: PC가 꺼져 있어 놓친 실행은 켜진 뒤 한 번 돈다. 기본값은 "로그온했을 때만 실행"
+  - PC 시간대가 한국 표준시(KST)여야 14:00·20:00이 KST다
+- 확인·지금 한 번 돌리기·삭제:
+  ```powershell
+  Get-ScheduledTask -TaskName "Khuration Crawl" | Get-ScheduledTaskInfo   # 마지막 실행 시각, 결과(0 = 정상), 다음 실행
+  Start-ScheduledTask -TaskName "Khuration Crawl"
+  Unregister-ScheduledTask -TaskName "Khuration Crawl" -Confirm:$false
+  ```
 
 ## 첨부 파싱 (parsers/) — 구현 완료, 크롤러 담당은 수정하지 않음
 - `parse_attachment(data, filename)` → `ParseResult(text, method, needs_ocr, note)`. 형식은 매직 바이트로 판별
