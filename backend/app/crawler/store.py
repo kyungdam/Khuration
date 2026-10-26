@@ -50,6 +50,8 @@ def upsert_notice(db: Session, raw: RawNotice, ex: Extracted, attachment_texts: 
         text = texts.get(url, "")
         a = existing.get(url)
         if a is None:
+            if kind == "image" and not text:
+                continue  # 못 읽은 이미지(robots 차단, OCR 실패)는 빈 행으로 쌓지 않는다
             db.add(Attachment(notice_id=n.id, file_url=url, kind=kind, extracted_text=text))
         elif text and a.extracted_text != text:
             a.extracted_text = text

@@ -69,3 +69,10 @@ def test_deadline_without_year_uses_posted_year():
     assert resolve_deadline("2026.11.9", None) == datetime(2026, 11, 9, 14, 59)
     assert resolve_deadline("13-40", datetime(2026, 1, 1)) is None
     assert resolve_deadline(None, None) is None
+
+
+def test_open_to_all_only_true_or_none():
+    assert sanitize_criteria({"open_to_all": True})["open_to_all"] is True
+    assert sanitize_criteria({"open_to_all": "yes"})["open_to_all"] is None
+    assert sanitize_criteria({"open_to_all": False})["open_to_all"] is None
+    assert sanitize_criteria({})["open_to_all"] is None

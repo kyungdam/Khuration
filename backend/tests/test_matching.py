@@ -8,8 +8,11 @@ def st(c, tags=T):
     return evaluate(c, tags)[0]
 
 
-def test_no_criteria_is_match():
-    assert st({}) == MATCH
+def test_no_criteria_is_check_unless_open_to_all():
+    assert st({}) == CHECK  # 조건을 못 찾은 공지는 '확인 필요'
+    assert st(None) == CHECK
+    assert st({"open_to_all": True}) == MATCH  # 공지에 제한 없음이 명시된 경우만 일치
+    assert st({"open_to_all": True, "campuses": ["seoul"]}) == MISMATCH  # 다른 조건이 있으면 그 조건으로
 
 
 def test_gpa():

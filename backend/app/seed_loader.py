@@ -3,6 +3,7 @@ import json
 from datetime import timedelta
 from pathlib import Path
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from . import clock
@@ -19,7 +20,9 @@ def content_hash(title: str, deadline, criteria) -> str:
 def load_seed(db: Session, replace: bool = False) -> int:
     if replace:
         db.query(NotificationLog).delete()
-        db.query(NoticeChunk).delete()  # 검색 조각은 다음 검색 때 다시 만든다 (Postgres FK 대비 먼저 삭제)
+        # 시연 공지의 검색 조각만 지운다(다음 검색 때 다시 만듦). Postgres FK 대비 공지보다 먼저 삭제
+        demo_ids = select(Notice.id).where(Notice.is_demo.is_(True))
+        db.query(NoticeChunk).filter(NoticeChunk.notice_id.in_(demo_ids)).delete(synchronize_session=False)
         db.query(Notice).filter(Notice.is_demo.is_(True)).delete()
         db.commit()
         clock.reset()

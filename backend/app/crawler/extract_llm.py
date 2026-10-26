@@ -31,14 +31,16 @@ SYSTEM = f"""너는 경희대학교 공지에서 정보를 뽑는 추출기다. 
   "criteria": {{
     "campuses": ["seoul"|"global"], "colleges": ["공과대학"...], "departments": ["화학공학과"...],
     "grades": [1~4], "min_gpa": 숫자|null, "gpa_basis": "overall"|"last"|null,
-    "min_credits": 숫자|null, "income_max": 1~10 정수|null, "requires_lang_score": true|false|null
+    "min_credits": 숫자|null, "income_max": 1~10 정수|null, "requires_lang_score": true|false|null,
+    "open_to_all": true|null
   }},
   "summary": "한 줄 요약(80자 이내, 지원 대상·혜택 포함)",
   "summary_points": ["핵심 3~4개, 각 40자 이내"],
   "checklist": ["제출·준비해야 할 것, 최대 6개"],
   "apply_url": "신청 링크(본문에 있을 때만)" 또는 ""
 }}
-campuses: 서울캠퍼스=seoul, 국제캠퍼스=global. 대상 제한이 없으면 빈 리스트."""
+campuses: 서울캠퍼스=seoul, 국제캠퍼스=global. 대상 제한이 없으면 빈 리스트.
+open_to_all: 공지에 "누구나", "전체 학생", "제한 없음", "전 학생 참가 가능"처럼 지원 제한이 없다고 명시된 경우만 true. 그 외에는 null(조건을 못 찾았다고 true로 쓰지 말 것)."""
 
 
 def resolve_deadline(v, posted: datetime | None) -> datetime | None:
@@ -92,6 +94,7 @@ def sanitize_criteria(c: dict | None) -> dict:
     out["income_max"] = int(inc) if inc is not None else None
     r = c.get("requires_lang_score")
     out["requires_lang_score"] = r if isinstance(r, bool) else None
+    out["open_to_all"] = True if c.get("open_to_all") is True else None
     if out["min_gpa"] is not None and out["gpa_basis"] is None:
         out["gpa_basis"] = "overall"
     return out

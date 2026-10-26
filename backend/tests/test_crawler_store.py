@@ -33,3 +33,13 @@ def test_rule_extract_and_kind():
     ex = extract_rule_based(raw, raw.body_text)
     assert ex.category == "공모전" and "ai_data" in ex.topics and ex.deadline is None
     assert guess_kind("공고문.HWP") == "hwp" and guess_kind("x.hwpx") == "hwpx" and guess_kind("p.jpg") == "image"
+
+
+def test_unread_images_are_not_stored():
+    Base.metadata.create_all(engine)
+    raw = RawNotice(source_name="테스트", url="https://example.com/crawl/img", title="포스터 공지", body_text="본문",
+                    image_urls=["https://example.com/ok.png", "https://example.com/blocked.png"])
+    with SessionLocal() as db:
+        n, _ = upsert_notice(db, raw, _ex(), {"https://example.com/ok.png": "포스터 글자"})
+        assert [a.file_url for a in n.attachments] == ["https://example.com/ok.png"]
+        assert n.attachments[0].kind == "image" and n.attachments[0].extracted_text == "포스터 글자"

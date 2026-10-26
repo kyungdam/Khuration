@@ -18,6 +18,7 @@ EMPTY_CRITERIA = {
     "min_credits": None,
     "income_max": None,  # 예: 8 (8분위 이하)
     "requires_lang_score": None,
+    "open_to_all": None,  # 공지에 "누구나/제한 없음"이 명시되면 True. 모르면 None → 판정은 '확인 필요'
 }
 
 CATEGORY_RULES = [

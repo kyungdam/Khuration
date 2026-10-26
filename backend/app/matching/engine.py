@@ -118,7 +118,10 @@ def evaluate(criteria: dict | None, tags: dict) -> tuple[str, list[dict]]:
             out.append(_r("lang", MISMATCH, req, "미보유"))
 
     if not out:
-        out.append(_r("all", MATCH, "별도 지원 조건 없음", "누구나 지원 가능"))
+        if c.get("open_to_all") is True:  # 공지에 "누구나/제한 없음"이 명시된 경우만
+            out.append(_r("all", MATCH, "별도 지원 조건 없음", "공지에 제한 없음 명시"))
+        else:  # 조건을 못 찾은 것과 조건이 없는 것은 다르다 → 모르면 확인 필요
+            out.append(_r("all", CHECK, "지원 자격", "공지에서 조건을 찾지 못함 — 원문 확인"))
 
     statuses = {x["status"] for x in out}
     overall = MISMATCH if MISMATCH in statuses else CHECK if CHECK in statuses else MATCH

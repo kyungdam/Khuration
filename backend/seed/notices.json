@@ -315,7 +315,9 @@
   "title": "[데모] 글로벌 버디 프로그램",
   "summary": "유학생 교류 프로그램입니다. 지원 조건 제한이 없습니다.",
   "deadline_in_days": 20,
-  "criteria": {},
+  "criteria": {
+   "open_to_all": true
+  },
   "posted_days_ago": 1,
   "checklist": [
    "어학 성적 준비",
@@ -360,7 +362,9 @@
   "title": "[데모] AI 아이디어 공모전",
   "summary": "AI 활용 아이디어를 제안하는 공모전입니다. 전 학생 참가 가능합니다.",
   "deadline_in_days": 6,
-  "criteria": {},
+  "criteria": {
+   "open_to_all": true
+  },
   "posted_days_ago": 5,
   "checklist": [
    "팀원 모집 (2~4인)",
@@ -384,7 +388,9 @@
   "title": "[데모] 창업 아이디어 경진대회",
   "summary": "창업 아이디어를 겨루는 경진대회입니다.",
   "deadline_in_days": 16,
-  "criteria": {},
+  "criteria": {
+   "open_to_all": true
+  },
   "posted_days_ago": 7,
   "checklist": [
    "팀원 모집",
@@ -435,7 +441,9 @@
   "title": "[데모] UI/UX 디자인 공모전",
   "summary": "앱 UI/UX 디자인 공모전입니다. 전 학생 참가 가능합니다.",
   "deadline_in_days": 9,
-  "criteria": {},
+  "criteria": {
+   "open_to_all": true
+  },
   "posted_days_ago": 11,
   "checklist": [
    "팀원 모집",
@@ -457,7 +465,9 @@
   "title": "[데모] 교내 해커톤 참가자 모집",
   "summary": "24시간 해커톤 참가자를 모집합니다.",
   "deadline_in_days": 21,
-  "criteria": {},
+  "criteria": {
+   "open_to_all": true
+  },
   "posted_days_ago": 1,
   "checklist": [
    "팀원 모집",
@@ -478,7 +488,9 @@
   "title": "[데모] 2학기 수강정정 기간 안내",
   "summary": "수강정정 기간과 방법을 안내합니다.",
   "deadline_in_days": 1,
-  "criteria": {},
+  "criteria": {
+   "open_to_all": true
+  },
   "posted_days_ago": 3,
   "checklist": [],
   "summary_points": [
@@ -513,7 +525,9 @@
   "title": "[데모] 계절학기 수강신청 안내",
   "summary": "계절학기 개설 과목과 신청 기간 안내입니다.",
   "deadline_in_days": 25,
-  "criteria": {},
+  "criteria": {
+   "open_to_all": true
+  },
   "posted_days_ago": 7,
   "checklist": [],
   "summary_points": [
@@ -577,7 +591,9 @@
   "title": "[데모] 지난 학기 장학금 추가 신청(마감됨)",
   "summary": "이미 마감된 공지입니다. 피드에 나타나면 안 됩니다.",
   "deadline_in_days": -2,
-  "criteria": {},
+  "criteria": {
+   "open_to_all": true
+  },
   "posted_days_ago": 1,
   "checklist": [
    "신청서 작성",
