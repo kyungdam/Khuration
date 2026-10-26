@@ -79,7 +79,7 @@ export default function WebShell() {
         style={styles.fill}
         javaScriptEnabled
         domStorageEnabled
-        cacheEnabled={false}
+        cacheEnabled
         setSupportMultipleWindows={false}
         startInLoadingState
         renderLoading={() => (
