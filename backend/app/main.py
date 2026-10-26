@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import models  # noqa: F401  (모델 등록)
+from . import clock, models  # noqa: F401  (모델 등록)
 from .config import settings
 from .db import Base, SessionLocal, engine
 from .routers import ai, demo, devices, feed, notices
@@ -31,7 +31,9 @@ app.add_middleware(
 
 @app.get("/health")
 def health():
-    return {"ok": True, "mode": settings.app_mode}
+    """mode로 앱이 시연 패널을 보일지 정하고, today(KST, 시연 시계 반영)로 D-day를 계산한다."""
+    return {"ok": True, "mode": settings.app_mode, "today": clock.kst_date(clock.now()).isoformat(),
+            "offset_days": clock.offset_days()}
 
 
 app.include_router(devices.router)

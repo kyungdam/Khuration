@@ -9,7 +9,7 @@ from ..deps import optional_device
 from ..matching.engine import evaluate
 from ..models import Device, Notice
 from ..schemas import FeedItem, NoticeDetail
-from .feed import to_item
+from .feed import is_visible, to_item, visible_notices
 
 router = APIRouter(prefix="/notices", tags=["notices"])
 
@@ -25,7 +25,7 @@ def list_notices(
     """공지사항 탭: 맞춤 필터 없이 전체 공지. 검색(제목·기관), 카테고리, 정렬."""
     tags = (dev.tags if dev else {}) or {}
     now = clock.now()
-    rows = db.query(Notice).all()
+    rows = visible_notices(db).all()
     out = []
     for n in rows:
         if n.deadline and n.deadline < now:
@@ -49,7 +49,7 @@ def list_notices(
 def notice_detail(notice_id: int, dev: Device | None = Depends(optional_device), db: Session = Depends(get_db)):
     """요약 + 지원 자격 + 원문 링크. 기기 토큰이 있으면 내 조건과의 판정 포함."""
     n = db.get(Notice, notice_id)
-    if not n:
+    if not is_visible(n):  # 다른 모드의 공지 번호로 들어와도 보여주지 않는다
         raise HTTPException(404, "공지를 찾을 수 없습니다")
     tags = (dev.tags if dev else {}) or {}
     item = to_item(n, tags)

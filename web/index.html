@@ -617,7 +617,12 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
 
   /* ---------- 서버 응답 → 화면 모양 ---------- */
   var ST = { match: ['MET', '충족'], mismatch: ['UNMET', '미충족'], check: ['CHECK', '확인 필요'] };
-  function today() { var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); }
+  /** 서버 '오늘'(KST, 시연 시계 반영). /health를 받기 전에는 기기 날짜 */
+  var serverToday = null;
+  function today() {
+    if (serverToday) return new Date(serverToday + 'T00:00:00');
+    var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  }
   function ddays(iso) { return iso ? Math.round((new Date(iso + 'T00:00:00') - today()) / 86400000) : null; }
   function progress(id) {
     if (!store.get('calendar', {})[id]) return null;
@@ -810,6 +815,27 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
       });
     },
 
+    /** 서버 모드(demo|live)와 서버 '오늘'. D-day·마감 알림은 이 날짜로 계산한다 */
+    getServerInfo: async function () {
+      var h = await raw('GET', '/health');
+      serverToday = h.today || null;
+      return { mode: h.mode, today: h.today, offsetDays: h.offset_days || 0 };
+    },
+
+    /** 시연 모드 전용 조작 (서버가 demo 모드일 때만 /demo/* 가 있다) */
+    demo: {
+      advanceClock: function (days) { return raw('POST', '/demo/advance-clock', { days: days }); },
+      resetClock: function () { return raw('POST', '/demo/reset-clock'); },
+      changeNotice: function (id, days) { return raw('POST', '/demo/change-notice', { notice_id: Number(id), deadline_in_days: days }); },
+      firePush: function (kind, id) { return http('POST', '/demo/fire-push', { kind: kind, notice_id: id ? Number(id) : null }); },
+      reseed: async function () {
+        var r = await raw('POST', '/demo/reseed');
+        // 시연 공지를 다시 넣으면 번호가 바뀌므로, 공지 번호로 저장해 둔 기기 데이터도 비운다
+        ['bookmarks', 'calendar', 'checklists', 'notices'].forEach(function (k) { store.set(k, {}); });
+        return r;
+      }
+    },
+
     __toTags: toTags
   };
 
@@ -876,7 +902,8 @@ const jo = (w, withB, without) => (batchim(w) ? withB : without);
 const pad = (n) => String(n).padStart(2, '0');
 const isoOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const parseIso = (s) => new Date(String(s).slice(0, 10) + 'T00:00:00');
-const TODAY = (() => {
+// 실서버 모드에서는 init()이 서버 '오늘'(시연 시계 반영)로 바꾼다 → 시계를 앞당기면 D-day도 같이 줄어든다
+let TODAY = (() => {
   if (C.USE_MOCK) return parseIso(C.MOCK_TODAY);
   const n = new Date();
   return new Date(n.getFullYear(), n.getMonth(), n.getDate());
@@ -905,7 +932,9 @@ const fresh = () => ({
   noticeId: null, checklistId: null, month: isoOf(TODAY).slice(0, 7),
   threadId: null, msgs: [], typing: false, input: '', threadLoading: false,
   data: { recs: null, unread: null, deadline: null, notices: null, detail: {}, calendar: {}, checklist: {}, week: {}, threads: null },
-  err: {}
+  err: {},
+  server: null, // { mode, today, offsetDays } — mode가 'demo'일 때만 시연 패널을 보여준다
+  demoLog: [], demoBusy: false
 });
 let S = fresh();
 const P = () => S.profile || DEF_PROFILE;
@@ -968,12 +997,20 @@ const L = {
     const wk = weekOf(c.deadline);
     S.data.week[id] = (await Api.getCalendar(isoOf(wk[0]), isoOf(wk[6]))).events;
   },
-  threads: async () => { S.data.threads = (await Api.listThreads()).threads; }
+  threads: async () => { S.data.threads = (await Api.listThreads()).threads; },
+  server: async () => { await syncServer(); }
 };
+const isDemo = () => !C.USE_MOCK && !!S.server && S.server.mode === 'demo';
+/** 서버 모드와 '오늘'을 받아 D-day 기준(TODAY)을 서버 시계에 맞춘다 */
+async function syncServer() {
+  if (C.USE_MOCK || !Api.getServerInfo) return;
+  S.server = await Api.getServerInfo();
+  if (S.server.today) TODAY = parseIso(S.server.today);
+}
 const NEEDS = {
   Main: [], Onboarding: ['meta'], HomeAI: ['recs', 'unread'], HomeDeadline: ['deadline', 'unread'],
   Notices: ['meta', 'notices'], NoticeDetail: ['detail'], Calendar: ['calendar'], CalendarChecklist: ['checklist'],
-  ChatThreads: ['threads'], Chat: []
+  ChatThreads: ['threads'], Chat: [], Demo: ['server']
 };
 async function load(keys) {
   const screen = S.screen;
@@ -1007,6 +1044,7 @@ const homeTop = (tab, headline) => {
     <div class="serif" style="font-size:19px;font-weight:700;letter-spacing:1px"><span style="color:${B}">KHU</span>RATION</div>
     <div style="display:flex;gap:2px;margin-right:-10px">
       <button class="ib" type="button" aria-label="알림${unread ? ` ${unread}개` : ''}" data-act="bell" style="position:relative">${ic('bell')}${unread ? `<span style="position:absolute;top:7px;right:6px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:${B};color:#fff;font-size:10px;font-weight:700;line-height:14px;text-align:center;border:2px solid #FAF7F5">${unread > 99 ? '99+' : unread}</span>` : ''}</button>
+      ${isDemo() ? `<button class="ib" type="button" aria-label="시연 패널" data-go="Demo">${ic('clock')}</button>` : ''}
       <button class="ib" type="button" aria-label="내 정보 수정" data-go="Onboarding">${ic('gear')}</button>
     </div>
   </div>
@@ -1470,6 +1508,37 @@ R.Chat = () => {
 </div>`;
 };
 
+/* 시연 패널: 서버가 demo 모드일 때만 홈 상단 시계 버튼으로 연다 */
+R.Demo = () => {
+  const sv = S.server;
+  const off = sv ? sv.offsetDays : 0;
+  const btn = (act, label, extra = '', primary = false) => `<button type="button" data-act="${act}" ${extra}${S.demoBusy ? ' disabled' : ''} style="height:44px;padding:0 14px;border-radius:12px;border:1.5px solid ${B};background:${primary ? B : '#fff'};color:${primary ? '#fff' : B};font-size:13px;font-weight:700;opacity:${S.demoBusy ? 0.5 : 1}">${label}</button>`;
+  const sec = (title, desc, body) => `<section style="background:#fff;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:700">${title}</span><span style="font-size:12px;color:#5E4E53">${desc}</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">${body}</div></section>`;
+  return `<div class="scr"><main class="main ns" data-scroll="demo">
+  <div style="height:44px;display:flex;align-items:center;gap:4px">
+    <a href="#" data-act="back" class="ib" aria-label="뒤로" style="margin-left:-12px">${ic('left')}</a>
+    <span style="font-size:17px;font-weight:700">시연 패널</span>
+  </div>
+  <div style="margin-top:8px;display:flex;flex-direction:column;gap:12px">
+    <div style="background:#F5E8EB;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:4px">
+      <span style="font-size:12px;color:#5E4E53">서버 날짜 (D-day·마감 알림 기준)</span>
+      <span style="font-size:20px;font-weight:700;color:${B}">${sv ? `${full(sv.today)}` : '불러오는 중…'}</span>
+      <span style="font-size:12px;color:#5E4E53">${off ? `실제보다 ${off}일 앞당김` : '실제 날짜'} · 시연 공지([데모])만 보여요</span>
+    </div>
+    ${sec('시계 앞당기기', '마감이 다가오는 상황을 만들어요. 캘린더에 저장한 공지가 3일 안으로 들어오면 종 아이콘에 표시돼요.',
+    btn('demoClock', '+1일', 'data-days="1"') + btn('demoClock', '+3일', 'data-days="3"') + btn('demoClock', '+7일', 'data-days="7"') + btn('demoReset', '실제 날짜로'))}
+    ${sec('알림 보내 보기', '이 기기에 맞는 공지로 알림을 만들어 앱 안에 보여줘요 (웹 앱은 원격 푸시가 없어요).',
+    btn('demoPush', '마감 임박 알림', 'data-kind="d3"', true) + btn('demoPush', '새 맞춤 공지 알림', 'data-kind="new"'))}
+    ${sec('공지 변경', '추천 1순위 공지의 마감일을 바꾸고 "공지가 변경됐어요" 알림을 보내요.',
+    btn('demoChange', '마감을 D-2로 바꾸기'))}
+    ${sec('시연 공지 초기화', '시연 공지를 처음 상태로 다시 넣고 시계도 되돌려요. 북마크·캘린더 저장도 비워져요.',
+    btn('demoReseed', '시연 공지 다시 넣기'))}
+    ${S.demoLog.length ? `<section style="display:flex;flex-direction:column;gap:6px;padding:0 4px 24px"><span style="font-size:12px;font-weight:600;color:#786A6E">기록</span>${S.demoLog.slice(0, 8).map((l) => `<span style="font-size:12px;color:#3E2E33">${esc(l)}</span>`).join('')}</section>` : ''}
+  </div></main></div>`;
+};
+
 /* ---------- engine ---------- */
 let toastTimer = null;
 let searchTimer = null;
@@ -1556,6 +1625,27 @@ const invalidate = () => {
   S.data.recs = null; S.data.deadline = null; S.data.notices = null;
   S.data.detail = {}; S.data.calendar = {}; S.data.checklist = {}; S.data.week = {};
 };
+/** 서버 fire-push 응답 → 앱 안 알림 문구. 웹 기기 토큰은 원격 푸시가 없어서 미리보기 내용을 보여준다 */
+const pushText = (r) => (r && r.preview ? `알림 · ${r.preview.title}: ${r.preview.body}` : (r && r.reason) || '보낼 알림이 없어요');
+/** 시연 조작 하나 실행 → 서버 날짜 다시 받기 → 화면 데이터 새로 고침 → 결과를 토스트와 기록에 남김 */
+async function demoRun(label, fn) {
+  if (S.demoBusy) return;
+  S.demoBusy = true;
+  render();
+  try {
+    const msg = await fn();
+    await syncServer();
+    invalidate();
+    try { await L.unread(); } catch (e) { /* 프로필 없으면 건너뜀 */ }
+    S.demoLog.unshift(`${label} → ${msg}`);
+    toast(msg);
+  } catch (e) {
+    console.error('[KHURATION] 시연 조작 실패', e);
+    toast((e && e.message) || '시연 조작에 실패했어요');
+  }
+  S.demoBusy = false;
+  if (S.screen === 'Demo') render();
+}
 const patchNotice = (id, fn) => {
   const d = S.data.detail[id];
   if (d) fn(d);
@@ -1590,6 +1680,18 @@ const ACT = {
   retry: () => { delete S.err[S.screen]; render(); refresh(); },
   back: () => back(),
   bell: () => toast(S.data.unread ? (C.USE_MOCK ? `새 맞춤 공지 ${S.data.unread}건이 도착했어요` : `저장한 공지 ${S.data.unread}건의 마감이 3일 안에 와요`) : '새 알림이 없어요'),
+
+  /* 시연 패널 */
+  demoClock: (d) => demoRun(`시계 +${d.days}일`, async () => { await Api.demo.advanceClock(Number(d.days)); return `시계를 ${d.days}일 앞당겼어요`; }),
+  demoReset: () => demoRun('시계 초기화', async () => { await Api.demo.resetClock(); return '실제 날짜로 돌아왔어요'; }),
+  demoPush: (d) => demoRun(d.kind === 'd3' ? '마감 임박 알림' : '새 맞춤 공지 알림', async () => pushText(await Api.demo.firePush(d.kind))),
+  demoChange: () => demoRun('공지 변경', async () => {
+    const top = (await Api.getRecommendations()).top;
+    if (!top) return '바꿀 추천 공지가 없어요';
+    await Api.demo.changeNotice(top.id, 2);
+    return pushText(await Api.demo.firePush('changed', top.id));
+  }),
+  demoReseed: () => demoRun('시연 공지 초기화', async () => { const r = await Api.demo.reseed(); return `시연 공지 ${r.loaded}개를 다시 넣었어요`; }),
 
   /* 정보 입력 */
   gradeToggle: () => { S.gradeOpen = !S.gradeOpen; S.majorOpen = false; S.incomeOpen = false; render(); },
@@ -1800,6 +1902,13 @@ async function init() {
     if (p) { S.profile = p; S.form = profileToForm(p); }
   } catch (e) {
     console.warn('[KHURATION] 프로필을 불러오지 못했어요', e);
+  }
+  try {
+    await syncServer();
+    if (mode && S.server) mode.textContent += S.server.mode === 'demo' ? ' · 시연 모드' : ' · 실제 모드';
+    render();
+  } catch (e) {
+    console.warn('[KHURATION] 서버 날짜를 불러오지 못했어요 (기기 날짜로 계산)', e);
   }
 }
 

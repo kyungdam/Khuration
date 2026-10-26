@@ -22,7 +22,7 @@ def load_seed(db: Session, replace: bool = False) -> int:
         db.query(Notice).filter(Notice.is_demo.is_(True)).delete()
         db.commit()
         clock.reset()
-    elif db.query(Notice).count() > 0:
+    elif db.query(Notice).filter(Notice.is_demo.is_(True)).count() > 0:  # 크롤링 공지만 있어도 시연 공지는 넣는다
         return 0
     items = json.loads(SEED_PATH.read_text(encoding="utf-8"))
     for i, it in enumerate(items, start=1):

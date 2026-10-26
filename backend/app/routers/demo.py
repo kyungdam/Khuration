@@ -11,7 +11,7 @@ from ..deps import require_device
 from ..models import Device, Notice, NotificationLog
 from ..push import expo
 from ..seed_loader import content_hash, load_seed
-from .feed import build_feed
+from .feed import build_feed, is_visible
 
 router = APIRouter(tags=["demo"])
 
@@ -58,9 +58,10 @@ def reseed(db: Session = Depends(get_db)):
 def change_notice(body: ChangeNotice, db: Session = Depends(get_db)):
     """공지 마감일 변경 → content_hash 변경 → 'changed' 알림 대상이 된다."""
     n = db.get(Notice, body.notice_id)
-    if not n:
+    if not is_visible(n):  # 시연 공지만 바꾼다 (크롤링 공지는 건드리지 않음)
         raise HTTPException(404, "공지를 찾을 수 없습니다")
-    n.deadline = clock.kst_deadline(body.deadline_in_days)
+    # 시계를 앞당긴 상태에서도 "지금부터 N일 뒤"가 되도록 시연 오프셋을 더한다
+    n.deadline = clock.kst_deadline(body.deadline_in_days) + (clock.now() - clock.real_utcnow())
     n.content_hash = content_hash(n.title, n.deadline, n.criteria)
     db.commit()
     return {"id": n.id, "content_hash": n.content_hash}
