@@ -68,12 +68,30 @@ class FeedItem(BaseModel):
     category: str
     summary: str
     url: str
+    posted_date: str | None  # KST 기준 YYYY-MM-DD
     deadline_date: str | None  # KST 기준 YYYY-MM-DD
     d_day: int | None
     status: Literal["match", "check", "mismatch"]
     reasons: list[Reason]
     interest_score: int
+    topics: list[str]  # 관심분야 키 + 카테고리 키
 
 
 class NoticeDetail(FeedItem):
     requirements: list[str]
+    summary_points: list[str]
+    checklist: list[str]
+    apply_url: str
+
+
+class ChatIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    message: str = Field(min_length=1, max_length=500)
+
+
+class ChatOut(BaseModel):
+    answer: str
+    keywords: list[str]
+    items: list[FeedItem]
+    sources: list[str]
+    engine: str  # "rule" | "chatkhu"

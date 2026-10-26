@@ -34,6 +34,9 @@ class Notice(Base):
     content_hash: Mapped[str] = mapped_column(String(64), default="")
     criteria: Mapped[dict | None] = mapped_column(JSON)
     summary: Mapped[str] = mapped_column(Text, default="")
+    summary_points: Mapped[list | None] = mapped_column(JSON)  # AI 요약 bullet
+    checklist: Mapped[list | None] = mapped_column(JSON)  # 신청 준비 항목
+    apply_url: Mapped[str] = mapped_column(String(1000), default="")
     is_demo: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow)
     attachments: Mapped[list["Attachment"]] = relationship(back_populates="notice")

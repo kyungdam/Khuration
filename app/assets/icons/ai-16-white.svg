@@ -1,0 +1,9 @@
+<svg preserveAspectRatio="none" overflow="visible" style="display: block;" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="AI symbol">
+<mask id="stroke0_0_20" fill="white">
+<path d="M9.2 5.4667L8 2L6.8 5.4667L3.3333 6.6667L6.8 7.8666L8 11.3333L9.2 7.8667L12.6667 6.6667L9.2 5.4667Z"/>
+<path d="M13.2 11.4667L12.6667 10L12.1334 11.4667L10.6667 12L12.1334 12.5333L12.6667 14L13.2 12.5333L14.6667 12L13.2 11.4667Z"/>
+</mask>
+<path id="Glyph" d="M8 2L9.2 5.4667L12.6667 6.6667L9.2 7.8667L8 11.3333L6.8 7.8666L3.3333 6.6667L6.8 5.4667L8 2ZM12.6667 10L13.2 11.4667L14.6667 12L13.2 12.5333L12.6667 14L12.1334 12.5333L10.6667 12L12.1334 11.4667L12.6667 10Z" stroke-width="2.4" stroke-linecap="round" stroke="white" mask="url(#stroke0_0_20)"/>
+</g>
+</svg>

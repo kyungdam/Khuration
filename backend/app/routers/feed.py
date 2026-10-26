@@ -4,16 +4,19 @@ from sqlalchemy.orm import Session
 from .. import clock
 from ..db import get_db
 from ..deps import require_device
-from ..matching.engine import CHECK, MATCH, MISMATCH, evaluate, interest_score
+from ..matching.engine import CHECK, MATCH, MISMATCH, evaluate, interest_score, topic_keys
 from ..models import Device, Notice
 from ..schemas import FeedItem, Reason
 
 router = APIRouter(tags=["feed"])
 
 
+def _date(dt):
+    return clock.kst_date(dt).isoformat() if dt else None
+
+
 def to_item(n: Notice, tags: dict) -> FeedItem:
     status, reasons = evaluate(n.criteria, tags)
-    dl = n.deadline
     return FeedItem(
         id=n.id,
         title=n.title,
@@ -21,11 +24,13 @@ def to_item(n: Notice, tags: dict) -> FeedItem:
         category=n.category,
         summary=n.summary,
         url=n.url,
-        deadline_date=clock.kst_date(dl).isoformat() if dl else None,
-        d_day=clock.d_day(dl),
+        posted_date=_date(n.posted_at),
+        deadline_date=_date(n.deadline),
+        d_day=clock.d_day(n.deadline),
         status=status,
         reasons=[Reason(**r) for r in reasons],
-        interest_score=interest_score(n.topics, tags),
+        interest_score=interest_score(n.topics, tags, n.category),
+        topics=sorted(topic_keys(n.topics, n.category)),
     )
 
 

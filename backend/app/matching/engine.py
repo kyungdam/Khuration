@@ -125,6 +125,22 @@ def evaluate(criteria: dict | None, tags: dict) -> tuple[str, list[dict]]:
     return overall, out
 
 
-def interest_score(topics: list | None, tags: dict) -> int:
+CATEGORY_KEY = {
+    "장학": "scholarship",
+    "현장실습": "internship",
+    "국제교류": "language_abroad",
+    "공모전": "contest",
+    "학사": "academic",
+}
+
+
+def topic_keys(topics: list | None, category: str | None = None) -> set[str]:
     t = set(topics or [])
+    if category in CATEGORY_KEY:
+        t.add(CATEGORY_KEY[category])
+    return t
+
+
+def interest_score(topics: list | None, tags: dict, category: str | None = None) -> int:
+    t = topic_keys(topics, category)
     return len(t & set(tags.get("interests", []))) + 2 * len(t & set(tags.get("intent_keywords", [])))

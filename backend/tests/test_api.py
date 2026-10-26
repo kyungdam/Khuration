@@ -59,3 +59,23 @@ def test_flow():
         assert "중복" in p2["reason"]
 
         assert c.delete("/devices", headers=h2).json()["deleted"]
+
+
+def test_notices_list_detail_and_chat():
+    with TestClient(app) as c:
+        c.post("/devices", json={"push_token": TOKEN, "tags": TAGS})
+        allv = c.get("/notices").json()
+        assert len(allv) >= 20 and all(i["posted_date"] for i in allv)
+        assert c.get("/notices?q=해커톤").json()[0]["title"].endswith("해커톤 참가자 모집")
+        dl = [i["d_day"] for i in c.get("/notices?sort=deadline").json()]
+        assert dl == sorted(dl)
+        sch = c.get("/notices?category=장학").json()
+        assert sch and all(i["category"] == "장학" for i in sch)
+
+        ai = next(i for i in allv if "AI 아이디어" in i["title"])
+        d = c.get(f"/notices/{ai['id']}", headers=H).json()
+        assert len(d["summary_points"]) == 3 and len(d["checklist"]) == 5 and d["apply_url"]
+
+        r = c.post("/ai/chat", headers=H, json={"message": "AI 관련 공모전 있어?"}).json()
+        assert r["items"] and all("contest" in i["topics"] or "ai_data" in i["topics"] for i in r["items"])
+        assert r["engine"] == "rule"

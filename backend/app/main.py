@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import models  # noqa: F401  (모델 등록)
 from .config import settings
 from .db import Base, SessionLocal, engine
-from .routers import demo, devices, feed, notices
+from .routers import ai, demo, devices, feed, notices
 from .seed_loader import load_seed
 
 
@@ -34,5 +34,6 @@ def health():
 app.include_router(devices.router)
 app.include_router(feed.router)
 app.include_router(notices.router)
+app.include_router(ai.router)
 if settings.app_mode == "demo":
     app.include_router(demo.router, prefix="/demo")
