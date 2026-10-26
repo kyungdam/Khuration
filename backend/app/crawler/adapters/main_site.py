@@ -11,10 +11,6 @@ class MainSiteAdapter(KhuCmsAdapter):
     list_rows = "table tbody tr"
     parse_detail = staticmethod(parse_detail_board02)
 
-    def __init__(self, name: str, menu_no: str):
-        self.name = name
-        self.menu_no = menu_no
-
 
 MAIN_BOARDS = {
     "main": MainSiteAdapter("경희대 공지(일반)", "200316"),

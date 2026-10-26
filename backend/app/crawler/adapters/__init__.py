@@ -3,9 +3,11 @@ from ..base import Adapter
 from .chemeng import ChemEngAdapter
 from .engineering import EngineeringAdapter
 from .main_site import MAIN_BOARDS
+from .oia import OIA_BOARDS
 
 ADAPTERS: dict[str, Adapter] = {
     "eng": EngineeringAdapter(),
     "chemeng": ChemEngAdapter(),
     **MAIN_BOARDS,  # main, main_academic, main_scholarship, main_work
+    **OIA_BOARDS,  # oia, oia_outgoing
 }

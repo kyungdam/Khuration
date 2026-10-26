@@ -110,6 +110,13 @@ class KhuCmsAdapter(Adapter):
     list_rows = "div.bbs_tbl-st1 table tbody tr"
     parse_detail = staticmethod(parse_detail)
 
+    def __init__(self, name: str | None = None, menu_no: str | None = None):
+        """한 사이트에 게시판이 여럿이면 인스턴스마다 이름·menuNo만 바꿔 등록한다."""
+        if name:
+            self.name = name
+        if menu_no:
+            self.menu_no = menu_no
+
     @property
     def list_url(self) -> str:
         return f"{self.site}{self.board_path}list.do?menuNo={self.menu_no}"
