@@ -60,4 +60,5 @@ def notice_detail(notice_id: int, dev: Device | None = Depends(optional_device),
         summary_points=n.summary_points or ([n.summary] if n.summary else []),
         checklist=n.checklist or [],
         apply_url=n.apply_url or n.url,
+        deadline_evidence=((n.criteria or {}).get("_evidence") or {}).get("deadline"),
     )

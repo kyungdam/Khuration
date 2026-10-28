@@ -35,7 +35,19 @@
 {deadline, campuses[], colleges[], departments[], grades[], min_gpa, gpa_basis, min_credits, income_max,
  requires_lang_score, open_to_all, apply_url} — 모르면 null (추측 금지)
 - ChatKHU API(OpenAI 호환). 키·base_url·모델명은 backend/.env로 분리 (CHATKHU_MODEL_EXTRACT/VISION/CHAT).
-- TODO: 신뢰도 낮으면 고성능 모델로 재시도 (아직 없음).
+- 정확도 파이프라인 (`crawler/verify.py`, `crawler/extract_llm.py`):
+  AI가 값마다 원문 근거 문장(evidence)을 함께 낸다 → 코드가 근거를 원문과 대조(근거 기반 추출) + 값-근거 일치 +
+  날짜 후보 교차 확인 + 범위 검사 → 확인 못 한 값이 있으면 상위 모델(CHATKHU_MODEL_EXTRACT_STRONG)로 1회 재추출 →
+  그래도 못 한 값은 null(기권, 앱에서 '확인 필요'). 확인된 근거는 criteria["_evidence"]에 저장해 상세 화면에 표시.
+  '_'로 시작하는 criteria 키는 변경 감지(content_hash)에서 제외한다. 신청서·동의서 같은 빈 양식 첨부는 추출 입력에서 뺀다.
+- 정확도 측정: `python -m app.crawler.eval_extract export` → backend/eval/gold.csv(엑셀로 정답 표시) → `... score` → backend/eval/report.md
+- 새 조건 추가 방법: extract.py EMPTY_CRITERIA, extract_llm.py SYSTEM 스키마(criteria + evidence)와 sanitize_criteria,
+  verify.py VALUE_CHECKS(근거 안에 값이 있는지), matching/engine.py 판정 + EVIDENCE_KEYS, eval_extract.py FIELDS.
+  생년·새터민·유학생 같은 민감 조건은 서버로 보내지 말고, 서버는 조건만 내려주고 기기(web/index.html)에서 판정한다.
+
+## 자동 수집
+- 서버 켤 때(live 모드) 마지막 수집이 AUTO_CRAWL_HOURS(기본 12)보다 오래됐으면 백그라운드 수집 (`crawler/auto.py`).
+  상태는 `/health`의 crawl, 끄기는 .env `AUTO_CRAWL=false`. 정기 실행은 scripts/crawl.ps1 + 작업 스케줄러(PC가 켜져 있을 때).
 
 ## KHU AI 검색(RAG)
 - `app/rag/index.py`: 공지(요약·체크리스트·본문·첨부·포스터 OCR) → 500자 조각 → 키워드(BM25, 한글 2글자 단위) 검색.

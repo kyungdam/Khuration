@@ -11,6 +11,7 @@ from .adapters import ADAPTERS
 from .base import PoliteClient
 from .extract import extract
 from .store import upsert_notice
+from .verify import extraction_source
 
 
 READABLE = (".hwp", ".hwpx", ".pdf", ".docx")
@@ -69,7 +70,7 @@ def run(sources: list[str], limit: int, dry_run: bool) -> dict:
                     try:
                         raw = ad.fetch_detail(client, item)
                         attachment_texts = read_attachments(client, raw)
-                        full = "\n".join([raw.body_text, *attachment_texts.values()])
+                        full = extraction_source(raw.body_text, attachment_texts)  # 신청서·동의서 같은 빈 양식은 추출 입력에서 뺌
                         ex = extract(raw, full)
                         if dry_run:
                             print(f"[{key}] {raw.title} | {ex.category} | 첨부 {len(raw.attachments)}(읽음 {len(attachment_texts)}) | 마감 {ex.deadline}")

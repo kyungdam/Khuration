@@ -664,12 +664,13 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     d.summary = (n.summary_points && n.summary_points.length) ? n.summary_points : (n.summary ? [n.summary] : ['요약이 아직 없어요. 원문을 확인해 주세요.']);
     d.fit = (n.reasons || []).map(function (r) {
       var s = ST[r.status] || ST.check;
-      return { label: r.requirement, status: s[0], statusText: r.status === 'check' && /정보 없음/.test(r.note) ? '정보 없음' : s[1] };
+      return { label: r.requirement, status: s[0], statusText: r.status === 'check' && /정보 없음/.test(r.note) ? '정보 없음' : s[1], evidence: r.evidence || null };
     });
     if (!d.fit.length) d.fit = [{ label: '지원 자격 (공지에 조건 표시 없음)', status: 'CHECK', statusText: '원문 확인' }];
     d.originalUrl = n.url;
     d.applyUrl = n.apply_url || n.url;
     d.serverChecklist = n.checklist || [];
+    d.deadlineEvidence = n.deadline_evidence || null;
     remember(d);
     return d;
   }
@@ -1370,6 +1371,7 @@ R.NoticeDetail = () => {
       <span style="font-size:13px;color:#5E4E53">게시 ${full(n.postedAt).slice(0, 10)} · 마감 ${full(n.deadline)}</span>
       <span class="badge ${badgeCls(n.deadline)}" style="height:26px;padding:0 10px;border-radius:13px;font-size:13px">${dday(n.deadline)}</span>
     </div>
+    ${n.deadlineEvidence ? `<span style="margin-top:4px;font-size:12px;line-height:1.5;color:#786A6E">마감일 근거 · 원문 “${esc(n.deadlineEvidence)}”</span>` : (n.deadline ? '' : `<span style="margin-top:4px;font-size:12px;color:#786A6E">공지에서 마감일을 확인하지 못했어요 · 원문을 확인해 주세요</span>`)}
     <div style="margin-top:16px;display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:16px;background:${n.eligible && !checkState ? '#F5E8EB' : '#FBF1DF'}">${elig}</div>
     <section class="card" style="margin-top:12px;padding:16px;display:flex;flex-direction:column;gap:10px">
       <div style="display:flex;align-items:center;justify-content:space-between"><h2 style="margin:0;display:flex;align-items:center;gap:6px;font-size:15px;font-weight:700">${ic('spark', 18, `color:${B}`)}AI 요약</h2></div>
@@ -1377,7 +1379,8 @@ R.NoticeDetail = () => {
     </section>
     <section class="card" style="margin-top:12px;padding:16px;display:flex;flex-direction:column;gap:10px">
       <div style="display:flex;align-items:center;justify-content:space-between"><h2 style="margin:0;font-size:15px;font-weight:700">나와의 적합성</h2><span style="font-size:12px;color:#5E4E53">${n.fit.length}개 중 ${met}개 충족</span></div>
-      <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px">${n.fit.map((f) => `<li style="display:flex;align-items:center;gap:8px;font-size:14px;min-height:24px">${f.status === 'MET' ? ic('okc', 20, `color:${B}`) : ic('warn', 20, 'color:#9A6200')}<span style="flex:1">${esc(f.label)}</span>${f.status === 'MET' ? `<span style="font-size:12px;font-weight:700;color:${B}">${esc(f.statusText)}</span>` : `<span style="height:22px;padding:0 8px;border-radius:11px;background:#FBF1DF;font-size:12px;font-weight:700;color:#8A5800;display:flex;align-items:center">${esc(f.statusText)}</span>`}</li>`).join('')}</ul>
+      <ul style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px">${n.fit.map((f) => `<li style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:8px;font-size:14px;min-height:24px">${f.status === 'MET' ? ic('okc', 20, `color:${B}`) : ic('warn', 20, 'color:#9A6200')}<span style="flex:1">${esc(f.label)}</span>${f.status === 'MET' ? `<span style="font-size:12px;font-weight:700;color:${B}">${esc(f.statusText)}</span>` : `<span style="height:22px;padding:0 8px;border-radius:11px;background:#FBF1DF;font-size:12px;font-weight:700;color:#8A5800;display:flex;align-items:center">${esc(f.statusText)}</span>`}</div>${f.evidence ? `<span style="margin-left:28px;font-size:12px;line-height:1.5;color:#786A6E">원문 “${esc(f.evidence)}”</span>` : ''}</li>`).join('')}</ul>
+      ${n.fit.some((f) => f.evidence) ? `<span style="font-size:11px;color:#786A6E">AI가 공지에서 찾은 문장을 원문과 대조해 확인한 조건만 보여요</span>` : ''}
     </section>
     <a href="#" data-act="${ck ? 'openChecklist' : 'noChecklist'}" data-id="${esc(n.id)}" class="card" style="margin-top:12px;height:56px;padding:0 14px 0 16px;display:flex;align-items:center;gap:10px">
       ${ic('list', 22, `color:${B}`)}<span style="flex:1;font-size:15px;font-weight:700">신청 체크리스트</span><span style="font-size:13px;color:#5E4E53">${ck ? `${ck.total}개 중 ${ck.done}개 완료` : '저장하면 만들어져요'}</span>${ic('right', 18, 'color:#786A6E')}

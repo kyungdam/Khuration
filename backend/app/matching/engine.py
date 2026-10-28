@@ -14,6 +14,14 @@ COLLEGE_OF = {
 }
 
 
+# 판정 항목 → 조건(criteria) 키. 새 조건을 추가하면 여기에도 넣는다 (근거 표시용)
+EVIDENCE_KEYS = {
+    "campus": ("campuses",), "dept": ("departments", "colleges"), "grade": ("grades",),
+    "gpa": ("min_gpa",), "credits": ("min_credits",), "income": ("income_max",),
+    "lang": ("requires_lang_score",), "all": ("open_to_all",),
+}
+
+
 def _r(field: str, status: str, requirement: str, note: str) -> dict:
     return {"field": field, "status": status, "requirement": requirement, "note": note}
 
@@ -122,6 +130,11 @@ def evaluate(criteria: dict | None, tags: dict) -> tuple[str, list[dict]]:
             out.append(_r("all", MATCH, "별도 지원 조건 없음", "공지에 제한 없음 명시"))
         else:  # 조건을 못 찾은 것과 조건이 없는 것은 다르다 → 모르면 확인 필요
             out.append(_r("all", CHECK, "지원 자격", "공지에서 조건을 찾지 못함 — 원문 확인"))
+
+    # 판정 이유마다 공지 원문 근거(추출 단계에서 원문과 대조해 확인된 구절)를 붙인다
+    ev = c.get("_evidence") or {}
+    for r in out:
+        r["evidence"] = next((ev[k] for k in EVIDENCE_KEYS.get(r["field"], ()) if ev.get(k)), None)
 
     statuses = {x["status"] for x in out}
     overall = MISMATCH if MISMATCH in statuses else CHECK if CHECK in statuses else MATCH

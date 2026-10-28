@@ -13,7 +13,9 @@ SEED_PATH = Path(__file__).resolve().parents[1] / "seed" / "notices.json"
 
 
 def content_hash(title: str, deadline, criteria) -> str:
-    raw = f"{title}|{deadline.isoformat() if deadline else ''}|{json.dumps(criteria, sort_keys=True, ensure_ascii=False)}"
+    # '_'로 시작하는 키(예: _evidence 근거 문장)는 변경 감지에서 뺀다 → 근거 문구만 달라져도 "변경됨" 알림이 가지 않게
+    crit = {k: v for k, v in (criteria or {}).items() if not str(k).startswith("_")} if isinstance(criteria, dict) else criteria
+    raw = f"{title}|{deadline.isoformat() if deadline else ''}|{json.dumps(crit, sort_keys=True, ensure_ascii=False)}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 

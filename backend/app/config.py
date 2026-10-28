@@ -11,9 +11,15 @@ class Settings(BaseSettings):
     chatkhu_api_key: str = ""
     chatkhu_base_url: str = ""
     chatkhu_model_extract: str = "gemini-3.8-flash"
+    chatkhu_model_extract_strong: str = "gemini-3.1-pro-preview"  # 근거 확인에 실패한 공지만 한 번 더 (비우면 끔)
     chatkhu_model_vision: str = "gemini-3.8-flash"
     chatkhu_model_chat: str = "gemini-3.5-flash-lite"
     chatkhu_model_dev: str = "gpt-5.4-nano"
+
+    # 서버 켤 때 자동 수집 (live 모드에서만). 마지막 수집이 auto_crawl_hours 보다 오래됐으면 뒤에서 수집 시작
+    auto_crawl: bool = True
+    auto_crawl_hours: float = 12
+    auto_crawl_limit: int = 10  # 게시판당 최신 N건
 
     @field_validator("app_mode")
     @classmethod

@@ -59,6 +59,7 @@ class Reason(BaseModel):
     status: Literal["match", "check", "mismatch"]
     requirement: str
     note: str
+    evidence: str | None = None  # 이 조건의 근거가 된 공지 원문 구절 (AI 추출 + 원문 대조로 확인된 것만)
 
 
 class FeedItem(BaseModel):
@@ -82,6 +83,7 @@ class NoticeDetail(FeedItem):
     summary_points: list[str]
     checklist: list[str]
     apply_url: str
+    deadline_evidence: str | None = None  # 마감일의 근거가 된 공지 원문 구절
 
 
 class ChatIn(BaseModel):

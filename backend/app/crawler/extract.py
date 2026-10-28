@@ -52,6 +52,7 @@ class Extracted:
     checklist: list[str] = field(default_factory=list)
     apply_url: str = ""
     engine: str = "rule"
+    verification: dict = field(default_factory=dict)  # {"kept": [...], "dropped": {항목: 이유}} (AI 추출일 때)
 
 
 def extract_rule_based(raw: RawNotice, full_text: str) -> Extracted:
