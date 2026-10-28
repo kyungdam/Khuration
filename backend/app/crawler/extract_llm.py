@@ -45,7 +45,9 @@ SYSTEM = f"""너는 경희대학교 공지에서 정보를 뽑는 추출기다. 
     "campuses": ["seoul"|"global"], "colleges": ["공과대학"...], "departments": ["화학공학과"...],
     "grades": [1~4], "min_gpa": 숫자|null, "gpa_basis": "overall"|"last"|null,
     "min_credits": 숫자|null, "income_max": 1~10 정수|null, "requires_lang_score": true|false|null,
-    "open_to_all": true|null
+    "open_to_all": true|null,
+    "birth_year_min": 연도|null, "birth_year_max": 연도|null, "max_age": 정수|null,
+    "intl_student": "only"|"excluded"|null, "nk_defector": "only"|"excluded"|null
   }},
   "summary": "한 줄 요약(80자 이내, 지원 대상·혜택 포함)",
   "summary_points": ["핵심 3~4개, 각 40자 이내"],
@@ -54,7 +56,11 @@ SYSTEM = f"""너는 경희대학교 공지에서 정보를 뽑는 추출기다. 
   "evidence": {{"deadline": "원문 구절", "grades": "원문 구절", ... 값을 채운 항목만}}
 }}
 campuses: 서울캠퍼스=seoul, 국제캠퍼스=global. 대상 제한이 없으면 빈 리스트.
-open_to_all: 공지에 "누구나", "전체 학생", "제한 없음", "전 학생 참가 가능"처럼 지원 제한이 없다고 명시된 경우만 true. 그 외에는 null(조건을 못 찾았다고 true로 쓰지 말 것)."""
+open_to_all: 공지에 "누구나", "전체 학생", "제한 없음", "전 학생 참가 가능"처럼 지원 제한이 없다고 명시된 경우만 true. 그 외에는 null(조건을 못 찾았다고 true로 쓰지 말 것).
+birth_year_min/max: 지원 자격에 출생 연도가 명시된 경우만. "2001.1.1. 이후 출생자" → birth_year_min 2001, "1997년 이전 출생" → birth_year_max 1997.
+max_age: 지원 자격의 나이 상한. "만 29세 이하" → 29, "만 30세 미만" → 29. 나이·연도 조건이 없으면 null.
+intl_student: "외국인 유학생 대상/만 지원" → "only", "외국인 유학생 제외", "내국인(대한민국 국적)만" → "excluded". 언급이 없으면 null.
+nk_defector: "북한이탈주민(새터민) 대상/만" → "only", 북한이탈주민 제외가 명시되면 "excluded". '우대'·'가점'은 지원 자격이 아니므로 null."""
 
 
 def resolve_deadline(v, posted: datetime | None) -> datetime | None:
@@ -111,6 +117,13 @@ def sanitize_criteria(c: dict | None) -> dict:
     out["open_to_all"] = True if c.get("open_to_all") is True else None
     if out["min_gpa"] is not None and out["gpa_basis"] is None:
         out["gpa_basis"] = "overall"
+    for k in ("birth_year_min", "birth_year_max"):
+        y = _num(c.get(k), 1940, 2020)
+        out[k] = int(y) if y is not None and float(y).is_integer() else None
+    age = _num(c.get("max_age"), 10, 100)
+    out["max_age"] = int(age) if age is not None and float(age).is_integer() else None
+    for k in ("intl_student", "nk_defector"):
+        out[k] = c.get(k) if c.get(k) in ("only", "excluded") else None
     return out
 
 

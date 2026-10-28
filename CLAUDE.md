@@ -44,6 +44,10 @@
 - 새 조건 추가 방법: extract.py EMPTY_CRITERIA, extract_llm.py SYSTEM 스키마(criteria + evidence)와 sanitize_criteria,
   verify.py VALUE_CHECKS(근거 안에 값이 있는지), matching/engine.py 판정 + EVIDENCE_KEYS, eval_extract.py FIELDS.
   생년·새터민·유학생 같은 민감 조건은 서버로 보내지 말고, 서버는 조건만 내려주고 기기(web/index.html)에서 판정한다.
+- 민감 조건(구현됨): criteria `birth_year_min`·`birth_year_max`·`max_age`·`intl_student`·`nk_defector`("only"|"excluded").
+  서버(matching.DEVICE_KEYS)는 판정 이유 field `birth`·`intl_student`·`nk_defector`를 '확인 필요(기기에서 판정)'로 두고
+  공지 쪽 값만 FeedItem.device_criteria로 내려준다 → 앱 `judgeOnDevice`가 기기에 저장된 출생 연도·유학생·새터민 여부와 비교해
+  이유와 전체 판정을 바꾼다(같은 출생 연도·생일에 따라 갈리는 나이는 '확인 필요'). 선택지는 taxonomy.json `sensitive`.
 
 ## 목록(학과·분류·관심 분야)과 토큰 절약
 - 학과→단과대·캠퍼스, 분류, 관심 분야 키워드는 `backend/app/taxonomy.json` 한 곳에만 둔다.
@@ -72,7 +76,7 @@
 ## 앱 ↔ 서버 계약 (web/index.html 기준)
 화면 코드는 `window.KhuApi` 만 부른다. 서버용 구현은 index.html 안의 "KHURATION API 클라이언트 — 우리 FastAPI 서버용" 스크립트.
 앱(기기 localStorage)에만 저장: 이름, 정확한 평균 학점/직전 평점/취득 학점, '하고 싶은 활동' 원문,
-북마크, 캘린더에 저장한 공지, 체크리스트, 마감 알림 설정, KHU AI 대화 기록.
+출생 연도·외국인 유학생·북한이탈주민 여부(선택 입력, 기기 판정용), 북마크, 캘린더에 저장한 공지, 체크리스트, 마감 알림 설정, KHU AI 대화 기록.
 기기 토큰은 `web-<uuid>` (Expo 푸시 토큰 아님 → 원격 푸시 없음. 시연 알림은 앱 안 종 아이콘: 저장한 공지 중 마감 3일 이내).
 서버로 보내는 태그 (`POST /devices`, 헤더 없이 body로 push_token + tags):
 - campus: "seoul" | "global"
@@ -89,6 +93,8 @@
 - `GET /feed`: 일치 → 확인 필요 순 (불일치는 `?include_mismatch=true`)
 - `GET /notices?q=&category=&sort=latest|deadline|ai`: 공지사항 탭 (헤더 있으면 판정 포함)
 - `GET /notices/{id}`: 요약·지원 자격·원문 링크
+- 목록·상세 항목의 `device_criteria`: 기기에서 판정할 민감 조건의 공지 쪽 값 (학생 값은 서버로 보내지 않는다. Tags가 거부)
+- `GET /meta`: 캠퍼스·학과·분류·관심 분야·학년·소득분위·민감 조건 선택지(`sensitive`)
 - `POST /ai/chat` {message}: KHU AI. 응답 {answer, items, sources, evidence[{notice_id,title,snippet}], engine, cached}
 - `DELETE /devices`: 내 데이터 삭제
 - demo 전용: `/demo/advance-clock`, `/demo/reset-clock`, `/demo/reseed`, `/demo/change-notice`, `/demo/fire-push`

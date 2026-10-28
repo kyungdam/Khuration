@@ -45,10 +45,19 @@ FIELDS = [
     ("정답_소득분위이하", "income_max"),
     ("정답_어학성적필요", "requires_lang_score"),
     ("정답_누구나", "open_to_all"),
+    ("정답_출생연도이후", "birth_year_min"),
+    ("정답_출생연도이전", "birth_year_max"),
+    ("정답_나이상한", "max_age"),
+    ("정답_유학생", "intl_student"),  # 대상 / 제외 / 빈칸
+    ("정답_새터민", "nk_defector"),  # 대상 / 제외 / 빈칸
 ]
+TARGET_CELL = {"only": "대상", "excluded": "제외"}
 HEAD = ["notice_id", "제목", "원문링크", "검토완료"] + [c for c, _ in FIELDS] + ["메모"]
 LABEL = {"deadline": "마감일", "colleges": "단과대", "departments": "학과", "campuses": "캠퍼스", "depts": "학과·단과대", "grades": "학년", "min_gpa": "최저학점",
-         "min_credits": "최소 이수학점", "income_max": "소득분위", "requires_lang_score": "어학 성적", "open_to_all": "누구나"}
+         "min_credits": "최소 이수학점", "income_max": "소득분위", "requires_lang_score": "어학 성적", "open_to_all": "누구나",
+         "birth_year_min": "출생 연도(이후)", "birth_year_max": "출생 연도(이전)", "max_age": "나이 상한",
+         "intl_student": "유학생", "nk_defector": "새터민"}
+NUM_KEYS = ("min_gpa", "min_credits", "income_max", "birth_year_min", "birth_year_max", "max_age")
 CAMPUS = {"seoul": "서울", "global": "국제"}
 
 
@@ -71,6 +80,11 @@ def to_cells(deadline, crit: dict) -> dict:
         "정답_소득분위이하": num(c.get("income_max")),
         "정답_어학성적필요": yn(c.get("requires_lang_score")),
         "정답_누구나": yn(c.get("open_to_all")),
+        "정답_출생연도이후": num(c.get("birth_year_min")),
+        "정답_출생연도이전": num(c.get("birth_year_max")),
+        "정답_나이상한": num(c.get("max_age")),
+        "정답_유학생": TARGET_CELL.get(c.get("intl_student"), ""),
+        "정답_새터민": TARGET_CELL.get(c.get("nk_defector"), ""),
     }
 
 
@@ -90,11 +104,13 @@ def parse_cell(key: str, s: str):
         return frozenset(norm(x) for x in _split(s))
     if key == "grades":
         return frozenset(int(x) for x in re.findall(r"[1-6]", s))
-    if key in ("min_gpa", "min_credits", "income_max"):
+    if key in NUM_KEYS:
         try:
             return float(s) if s else None
         except ValueError:
             return None
+    if key in ("intl_student", "nk_defector"):
+        return "excluded" if "제외" in s else "only" if s in ("대상", "only", "O") else None
     return True if s.upper() in ("O", "Y", "TRUE", "1", "예") else None
 
 
@@ -109,9 +125,11 @@ def pred_value(key: str, ex):
         return frozenset(norm(x) for x in (c.get("departments") or []) + (c.get("colleges") or []))
     if key == "grades":
         return frozenset(c.get("grades") or [])
-    if key in ("min_gpa", "min_credits", "income_max"):
+    if key in NUM_KEYS:
         v = c.get(key)
         return float(v) if v is not None else None
+    if key in ("intl_student", "nk_defector"):
+        return c.get(key) if c.get(key) in ("only", "excluded") else None
     return True if c.get(key) is True else None
 
 

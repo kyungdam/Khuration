@@ -5,7 +5,7 @@ from .. import clock
 from ..config import settings
 from ..db import get_db
 from ..deps import require_device
-from ..matching.engine import CHECK, MATCH, MISMATCH, evaluate, interest_score, topic_keys
+from ..matching.engine import CHECK, MATCH, MISMATCH, device_criteria, evaluate, interest_score, topic_keys
 from ..models import Device, Notice
 from ..schemas import FeedItem, Reason
 
@@ -45,6 +45,7 @@ def to_item(n: Notice, tags: dict) -> FeedItem:
         reasons=[Reason(**r) for r in reasons],
         interest_score=interest_score(n.topics, tags, n.category),
         topics=sorted(topic_keys(n.topics, n.category)),
+        device_criteria=device_criteria(n.criteria),
     )
 
 

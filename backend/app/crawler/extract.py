@@ -20,6 +20,12 @@ EMPTY_CRITERIA = {
     "income_max": None,  # 예: 8 (8분위 이하)
     "requires_lang_score": None,
     "open_to_all": None,  # 공지에 "누구나/제한 없음"이 명시되면 True. 모르면 None → 판정은 '확인 필요'
+    # 민감 조건: 서버는 공지 조건만 갖고, 학생 값과의 비교는 기기(web/index.html)가 한다 (matching.DEVICE_KEYS)
+    "birth_year_min": None,  # 예: 2001 ("2001년 이후 출생")
+    "birth_year_max": None,  # 예: 1997 ("1997년 이전 출생")
+    "max_age": None,  # 예: 29 ("만 29세 이하")
+    "intl_student": None,  # "only"(외국인 유학생 대상) | "excluded"(유학생 제외)
+    "nk_defector": None,  # "only"(북한이탈주민 대상) | "excluded"
 }
 
 

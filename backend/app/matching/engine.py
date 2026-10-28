@@ -1,6 +1,6 @@
 """조건 매칭. LLM이 아니라 코드가 판정한다. 일치 / 확인 필요 / 불일치 3상태.
 캠퍼스 이름, 학과→단과대(앱이 college를 안 보낼 때 보조), 분류→관심 키는 taxonomy.json 한 곳에서 관리한다."""
-from ..taxonomy import CAMPUS_LABEL, CATEGORY_KEY, COLLEGE_OF
+from ..taxonomy import CAMPUS_LABEL, CATEGORY_KEY, COLLEGE_OF, STATUS_TEXT
 
 MATCH, CHECK, MISMATCH = "match", "check", "mismatch"
 
@@ -9,7 +9,29 @@ EVIDENCE_KEYS = {
     "campus": ("campuses",), "dept": ("departments", "colleges"), "grade": ("grades",),
     "gpa": ("min_gpa",), "credits": ("min_credits",), "income": ("income_max",),
     "lang": ("requires_lang_score",), "all": ("open_to_all",),
+    "birth": ("birth_year_min", "birth_year_max", "max_age"),
+    "intl_student": ("intl_student",), "nk_defector": ("nk_defector",),
 }
+# 기기에서 판정하는 민감 조건. 서버는 학생 값을 모르므로 '확인 필요(기기 판정)'로 두고,
+# 공지 조건 값은 device_criteria로 앱에 내려준다 → web/index.html 이 기기에 저장된 값과 비교해 최종 판정
+DEVICE_KEYS = ("birth_year_min", "birth_year_max", "max_age", "intl_student", "nk_defector")
+DEVICE_NOTE = "내 기기에서 판정 (서버로 보내지 않는 정보)"
+
+
+def device_criteria(criteria: dict | None) -> dict:
+    c = criteria or {}
+    return {k: c[k] for k in DEVICE_KEYS if c.get(k) is not None}
+
+
+def _birth_requirement(c: dict) -> str | None:
+    parts = []
+    if c.get("birth_year_min") is not None:
+        parts.append(f"{c['birth_year_min']}년 이후 출생")
+    if c.get("birth_year_max") is not None:
+        parts.append(f"{c['birth_year_max']}년 이전 출생")
+    if c.get("max_age") is not None:
+        parts.append(f"만 {c['max_age']}세 이하")
+    return " · ".join(parts) or None
 
 
 def _r(field: str, status: str, requirement: str, note: str) -> dict:
@@ -114,6 +136,14 @@ def evaluate(criteria: dict | None, tags: dict) -> tuple[str, list[dict]]:
             out.append(_r("lang", MATCH, req, "보유"))
         else:
             out.append(_r("lang", MISMATCH, req, "미보유"))
+
+    # 민감 조건: 학생 값이 서버에 없으므로 항상 '확인 필요'. 앱이 기기에 있는 값으로 바꿔 판정한다
+    birth = _birth_requirement(c)
+    if birth:
+        out.append(_r("birth", CHECK, birth, DEVICE_NOTE))
+    for key in ("intl_student", "nk_defector"):
+        if c.get(key) in ("only", "excluded"):
+            out.append(_r(key, CHECK, STATUS_TEXT[key][c[key]], DEVICE_NOTE))
 
     if not out:
         if c.get("open_to_all") is True:  # 공지에 "누구나/제한 없음"이 명시된 경우만
