@@ -12,7 +12,7 @@
 새 조건을 추가할 때 (팀원 참고)
 - extract_llm.SYSTEM 스키마의 criteria와 evidence에 같은 키를 넣고,
 - 아래 VALUE_CHECKS에 "근거 문장 안에 그 값이 있는지" 확인 함수를 하나 추가하면 된다.
-- 민감한 조건(생년·새터민·유학생 등)은 서버 판정 대신 기기 판정을 권장 (루트 CLAUDE.md).
+- 민감한 조건(출생 연도·나이 등)은 서버 판정 대신 기기 판정 (루트 CLAUDE.md, matching.DEVICE_KEYS).
 """
 from __future__ import annotations
 
@@ -134,25 +134,12 @@ _OPEN_WORDS = ("누구나", "누구든", "제한없", "관계없이", "상관없
 
 _BIRTH_WORDS = ("출생", "년생", "생년", "태어")
 _AGE_WORDS = ("세", "나이", "연령")
-_INTL_WORDS = ("유학생", "외국인")
-_NK_WORDS = ("북한이탈", "새터민", "탈북")
-_EXCLUDE_WORDS = ("제외", "불가", "제한", "내국인", "한국국적", "대한민국국적", "지원할수없")
-_ONLY_WORDS = ("대상", "만지원", "만신청", "만해당", "에한함", "에한해", "한정", "전용")  # '우대'·'가점'은 자격 한정이 아니다
+_BONUS_WORDS = ("우대", "가점", "가산점")  # '1990년생 우대'는 지원 자격 제한이 아니다
 
 
 def _has_year(q: str, v) -> bool:
     """'2001.1.1.' 처럼 날짜에 붙은 연도도 찾는다 (_has_num은 '2001.1'을 소수로 읽는다)"""
     return isinstance(v, int) and str(v) in re.findall(r"(?<!\d)\d{4}(?!\d)", unicodedata.normalize("NFKC", q))
-
-
-def _target_ok(q: str, v, topic_words) -> bool:
-    """'only'면 근거에 대상 단어 + 한정 표현이, 'excluded'면 대상 단어 + 제외 표현이 있어야 한다"""
-    nq = norm(q)
-    if not any(w in nq for w in topic_words) and not (v == "excluded" and "내국인" in nq):
-        return False
-    if v == "only":
-        return any(w in nq for w in _ONLY_WORDS)
-    return v == "excluded" and any(w in nq for w in _EXCLUDE_WORDS)
 
 
 VALUE_CHECKS = {
@@ -166,11 +153,10 @@ VALUE_CHECKS = {
     "requires_lang_score": lambda q, v: v is True and any(w in norm(q) for w in _LANG_WORDS),
     "open_to_all": lambda q, v: v is True and any(w in norm(q) for w in _OPEN_WORDS),
     # 민감 조건 (값은 서버에 두고 판정은 기기에서)
-    "birth_year_min": lambda q, v: _has_year(q, v) and any(w in q for w in _BIRTH_WORDS),
-    "birth_year_max": lambda q, v: _has_year(q, v) and any(w in q for w in _BIRTH_WORDS),
-    "max_age": lambda q, v: (_has_num(q, v) or ("미만" in q and _has_num(q, v + 1))) and any(w in q for w in _AGE_WORDS),
-    "intl_student": lambda q, v: _target_ok(q, v, _INTL_WORDS),
-    "nk_defector": lambda q, v: _target_ok(q, v, _NK_WORDS),
+    "birth_year_min": lambda q, v: _has_year(q, v) and any(w in q for w in _BIRTH_WORDS) and not any(w in q for w in _BONUS_WORDS),
+    "birth_year_max": lambda q, v: _has_year(q, v) and any(w in q for w in _BIRTH_WORDS) and not any(w in q for w in _BONUS_WORDS),
+    "max_age": lambda q, v: ((_has_num(q, v) or ("미만" in q and _has_num(q, v + 1))) and any(w in q for w in _AGE_WORDS)
+                             and not any(w in q for w in _BONUS_WORDS)),
 }
 EMPTY_VALUE = {"campuses": [], "colleges": [], "departments": [], "grades": []}  # 나머지는 None
 

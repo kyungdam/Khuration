@@ -22,9 +22,8 @@ TOPIC_RULES: dict[str, list[str]] = {i["key"]: i["topic_keywords"] for i in _T["
 INTENT_RULES: dict[str, list[str]] = {i["key"]: i["intent_keywords"] for i in _T["interests"] + _T["extra_intents"]}
 # KHU AI 문장에 쓰는 짧은 이름 (장학금 → 장학)
 LABEL: dict[str, str] = {i["key"]: i.get("short", i["label"]) for i in _T["interests"] + _T["extra_intents"]}
-# 민감 조건(유학생·새터민 등) 문구. 학생 값은 서버로 오지 않고 기기에서 판정한다
+# 민감 조건(출생 연도) 선택지. 학생 값은 서버로 오지 않고 기기에서 판정한다
 SENSITIVE: dict = _T["sensitive"]
-STATUS_TEXT: dict[str, dict] = {s["key"]: s for s in SENSITIVE["statuses"]}
 
 
 def meta() -> dict:
@@ -36,6 +35,5 @@ def meta() -> dict:
         "interests": [{"key": i["key"], "label": i["label"]} for i in _T["interests"]],
         "grades": _T["grades"],
         "income_bands": _T["income_bands"],
-        "sensitive": {"birth_years": SENSITIVE["birth_years"],
-                      "statuses": [{"key": s["key"], "label": s["label"]} for s in SENSITIVE["statuses"]]},
+        "sensitive": {"birth_years": SENSITIVE["birth_years"]},
     }

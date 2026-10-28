@@ -24,8 +24,6 @@ EMPTY_CRITERIA = {
     "birth_year_min": None,  # 예: 2001 ("2001년 이후 출생")
     "birth_year_max": None,  # 예: 1997 ("1997년 이전 출생")
     "max_age": None,  # 예: 29 ("만 29세 이하")
-    "intl_student": None,  # "only"(외국인 유학생 대상) | "excluded"(유학생 제외)
-    "nk_defector": None,  # "only"(북한이탈주민 대상) | "excluded"
 }
 
 

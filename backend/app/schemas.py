@@ -68,7 +68,7 @@ class FeedItem(BaseModel):
     reasons: list[Reason]
     interest_score: int
     topics: list[str]  # 관심분야 키 + 카테고리 키
-    # 기기에서 판정할 민감 조건의 '공지 쪽' 값 (birth_year_min/max, max_age, intl_student, nk_defector).
+    # 기기에서 판정할 민감 조건의 '공지 쪽' 값 (birth_year_min/max, max_age).
     # 학생 값은 서버에 없다. 앱이 이 값과 기기에 저장된 값을 비교해 reasons의 같은 field를 바꾼다
     device_criteria: dict = {}
 

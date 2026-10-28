@@ -43,11 +43,12 @@
 - 정확도 측정: `python -m app.crawler.eval_extract export` → backend/eval/gold.csv(엑셀로 정답 표시) → `... score` → backend/eval/report.md
 - 새 조건 추가 방법: extract.py EMPTY_CRITERIA, extract_llm.py SYSTEM 스키마(criteria + evidence)와 sanitize_criteria,
   verify.py VALUE_CHECKS(근거 안에 값이 있는지), matching/engine.py 판정 + EVIDENCE_KEYS, eval_extract.py FIELDS.
-  생년·새터민·유학생 같은 민감 조건은 서버로 보내지 말고, 서버는 조건만 내려주고 기기(web/index.html)에서 판정한다.
-- 민감 조건(구현됨): criteria `birth_year_min`·`birth_year_max`·`max_age`·`intl_student`·`nk_defector`("only"|"excluded").
-  서버(matching.DEVICE_KEYS)는 판정 이유 field `birth`·`intl_student`·`nk_defector`를 '확인 필요(기기에서 판정)'로 두고
-  공지 쪽 값만 FeedItem.device_criteria로 내려준다 → 앱 `judgeOnDevice`가 기기에 저장된 출생 연도·유학생·새터민 여부와 비교해
-  이유와 전체 판정을 바꾼다(같은 출생 연도·생일에 따라 갈리는 나이는 '확인 필요'). 선택지는 taxonomy.json `sensitive`.
+  출생 연도 같은 민감 조건은 서버로 보내지 말고, 서버는 조건만 내려주고 기기(web/index.html)에서 판정한다.
+- 민감 조건(구현됨): criteria `birth_year_min`·`birth_year_max`·`max_age`. '우대·가점'은 자격 제한이 아니라 근거 검사에서 뺀다.
+  서버(matching.DEVICE_KEYS)는 판정 이유 field `birth`를 '확인 필요(기기에서 판정)'로 두고 공지 쪽 값만 FeedItem.device_criteria로
+  내려준다 → 앱 `judgeOnDevice`가 기기에 저장된 출생 연도와 비교해 이유와 전체 판정을 바꾼다
+  (같은 출생 연도·생일에 따라 갈리는 나이는 '확인 필요'). 출생 연도 범위는 taxonomy.json `sensitive`.
+  외국인 유학생·북한이탈주민 조건은 팀 결정(2026-10-28)으로 넣지 않는다 (영어 화면·유학생 게시판 수집이 먼저 필요).
 
 ## 목록(학과·분류·관심 분야)과 토큰 절약
 - 학과→단과대·캠퍼스, 분류, 관심 분야 키워드는 `backend/app/taxonomy.json` 한 곳에만 둔다.
@@ -76,7 +77,7 @@
 ## 앱 ↔ 서버 계약 (web/index.html 기준)
 화면 코드는 `window.KhuApi` 만 부른다. 서버용 구현은 index.html 안의 "KHURATION API 클라이언트 — 우리 FastAPI 서버용" 스크립트.
 앱(기기 localStorage)에만 저장: 이름, 정확한 평균 학점/직전 평점/취득 학점, '하고 싶은 활동' 원문,
-출생 연도·외국인 유학생·북한이탈주민 여부(선택 입력, 기기 판정용), 북마크, 캘린더에 저장한 공지, 체크리스트, 마감 알림 설정, KHU AI 대화 기록.
+출생 연도(선택 입력, 기기 판정용), 북마크, 캘린더에 저장한 공지, 체크리스트, 마감 알림 설정, KHU AI 대화 기록.
 기기 토큰은 `web-<uuid>` (Expo 푸시 토큰 아님 → 원격 푸시 없음. 시연 알림은 앱 안 종 아이콘: 저장한 공지 중 마감 3일 이내).
 서버로 보내는 태그 (`POST /devices`, 헤더 없이 body로 push_token + tags):
 - campus: "seoul" | "global"
