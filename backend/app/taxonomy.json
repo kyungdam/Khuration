@@ -1,0 +1,311 @@
+{
+ "_설명": "학과·분류·관심 분야의 단일 출처. 서버(판정·추출·KHU AI)와 앱(/meta)이 모두 이 파일을 쓴다. 항목을 추가·수정할 땐 여기만 고친다.",
+ "campuses": [
+  {
+   "key": "seoul",
+   "label": "서울캠퍼스"
+  },
+  {
+   "key": "global",
+   "label": "국제캠퍼스"
+  }
+ ],
+ "departments": [
+  {
+   "dept": "화학공학과",
+   "college": "공과대학",
+   "campus": "global"
+  },
+  {
+   "dept": "기계공학과",
+   "college": "공과대학",
+   "campus": "global"
+  },
+  {
+   "dept": "산업경영공학과",
+   "college": "공과대학",
+   "campus": "global"
+  },
+  {
+   "dept": "원자력공학과",
+   "college": "공과대학",
+   "campus": "global"
+  },
+  {
+   "dept": "신소재공학과",
+   "college": "공과대학",
+   "campus": "global"
+  },
+  {
+   "dept": "사회기반시스템공학과",
+   "college": "공과대학",
+   "campus": "global"
+  },
+  {
+   "dept": "건축공학과",
+   "college": "공과대학",
+   "campus": "global"
+  },
+  {
+   "dept": "환경학및환경공학과",
+   "college": "공과대학",
+   "campus": "global"
+  },
+  {
+   "dept": "전자공학과",
+   "college": "전자정보대학",
+   "campus": "global"
+  },
+  {
+   "dept": "생체의공학과",
+   "college": "전자정보대학",
+   "campus": "global"
+  },
+  {
+   "dept": "컴퓨터공학과",
+   "college": "소프트웨어융합대학",
+   "campus": "global"
+  },
+  {
+   "dept": "인공지능학과",
+   "college": "소프트웨어융합대학",
+   "campus": "global"
+  },
+  {
+   "dept": "소프트웨어융합학과",
+   "college": "소프트웨어융합대학",
+   "campus": "global"
+  },
+  {
+   "dept": "경영학과",
+   "college": "경영대학",
+   "campus": "seoul"
+  },
+  {
+   "dept": "경제학과",
+   "college": "정경대학",
+   "campus": "seoul"
+  },
+  {
+   "dept": "국어국문학과",
+   "college": "문과대학",
+   "campus": "seoul"
+  },
+  {
+   "dept": "수학과",
+   "college": "이과대학",
+   "campus": "seoul"
+  }
+ ],
+ "categories": [
+  {
+   "name": "장학",
+   "key": "scholarship",
+   "keywords": [
+    "장학",
+    "등록금",
+    "학자금"
+   ]
+  },
+  {
+   "name": "현장실습",
+   "key": "internship",
+   "keywords": [
+    "현장실습",
+    "인턴"
+   ]
+  },
+  {
+   "name": "국제교류",
+   "key": "language_abroad",
+   "keywords": [
+    "교환학생",
+    "해외",
+    "어학연수",
+    "국제교류"
+   ]
+  },
+  {
+   "name": "공모전",
+   "key": "contest",
+   "keywords": [
+    "공모전",
+    "경진대회",
+    "해커톤",
+    "대회"
+   ]
+  },
+  {
+   "name": "근로",
+   "key": null,
+   "keywords": [
+    "근로"
+   ]
+  },
+  {
+   "name": "취업",
+   "key": null,
+   "keywords": [
+    "채용",
+    "취업",
+    "멘토링"
+   ]
+  },
+  {
+   "name": "비교과",
+   "key": null,
+   "keywords": [
+    "비교과",
+    "특강",
+    "프로그램"
+   ]
+  },
+  {
+   "name": "학사",
+   "key": "academic",
+   "keywords": []
+  }
+ ],
+ "interests": [
+  {
+   "key": "dev_it",
+   "label": "개발·IT",
+   "topic_keywords": [
+    "sw",
+    "소프트웨어",
+    "개발",
+    "해커톤",
+    "코딩"
+   ],
+   "intent_keywords": [
+    "개발",
+    "코딩",
+    "프로그래밍",
+    "앱",
+    "해커톤",
+    "it",
+    "소프트웨어"
+   ]
+  },
+  {
+   "key": "ai_data",
+   "label": "AI·데이터",
+   "topic_keywords": [
+    "ai",
+    "인공지능",
+    "데이터"
+   ],
+   "intent_keywords": [
+    "ai",
+    "인공지능",
+    "데이터",
+    "머신러닝",
+    "딥러닝"
+   ]
+  },
+  {
+   "key": "design",
+   "label": "디자인",
+   "topic_keywords": [
+    "디자인",
+    "ui",
+    "ux"
+   ],
+   "intent_keywords": [
+    "디자인",
+    "ui",
+    "ux",
+    "그래픽"
+   ]
+  },
+  {
+   "key": "scholarship",
+   "label": "장학금",
+   "short": "장학",
+   "topic_keywords": [
+    "장학"
+   ],
+   "intent_keywords": [
+    "장학",
+    "등록금",
+    "학비"
+   ]
+  },
+  {
+   "key": "startup",
+   "label": "창업",
+   "topic_keywords": [
+    "창업",
+    "스타트업"
+   ],
+   "intent_keywords": [
+    "창업",
+    "스타트업",
+    "사업"
+   ]
+  },
+  {
+   "key": "language_abroad",
+   "label": "어학·해외",
+   "topic_keywords": [
+    "교환학생",
+    "어학",
+    "해외"
+   ],
+   "intent_keywords": [
+    "교환",
+    "어학",
+    "해외",
+    "유학",
+    "토익",
+    "연수"
+   ]
+  },
+  {
+   "key": "internship",
+   "label": "현장실습",
+   "topic_keywords": [
+    "현장실습",
+    "인턴"
+   ],
+   "intent_keywords": [
+    "인턴",
+    "현장실습",
+    "실습",
+    "취업"
+   ]
+  }
+ ],
+ "extra_intents": [
+  {
+   "key": "contest",
+   "label": "공모전",
+   "intent_keywords": [
+    "공모전",
+    "대회",
+    "경진",
+    "콘테스트"
+   ]
+  }
+ ],
+ "grades": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6
+ ],
+ "income_bands": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10
+ ]
+}

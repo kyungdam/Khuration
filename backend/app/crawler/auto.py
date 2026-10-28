@@ -82,7 +82,9 @@ def _job() -> None:
     d = _read()
     d.pop("running_since", None)
     d["last_finished"] = _now().isoformat()
-    d["last_result"] = {**result, "minutes": round((time.monotonic() - started) / 60, 1)}
+    from ..llm import client
+
+    d["last_result"] = {**result, "minutes": round((time.monotonic() - started) / 60, 1), "tokens": client.usage_summary()}
     _write(d)
     print(f"[자동 수집] 끝: {d['last_result']}")
 

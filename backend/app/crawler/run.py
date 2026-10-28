@@ -97,6 +97,9 @@ def main():
         print("\n".join(f"{k}: {v.name} {v.list_url}" for k, v in ADAPTERS.items()) or "(등록된 어댑터 없음)")
         return
     print(run(a.source or list(ADAPTERS), a.limit, a.dry_run))
+    from ..llm import client
+
+    print(client.usage_summary())  # 이번 실행의 AI 토큰 사용량 (캐시로 건너뛴 호출은 0)
 
 
 if __name__ == "__main__":

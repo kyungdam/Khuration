@@ -35,6 +35,32 @@ def sniff_mime(data: bytes) -> str:
     return "image/png"
 
 
+MAX_SIDE = 1600  # 긴 변 픽셀 상한. 포스터 글자 인식에 충분하고 이미지 토큰·전송량이 크게 준다
+
+
+def shrink(data: bytes) -> tuple[bytes, str]:
+    """큰 이미지는 긴 변 MAX_SIDE 로 줄여 JPEG로 보낸다. 실패하면 원본 그대로 (글자 인식이 우선)."""
+    mime = sniff_mime(data)
+    try:
+        import pymupdf
+
+        pix = pymupdf.Pixmap(data)
+        side = max(pix.width, pix.height)
+        if side <= MAX_SIDE and len(data) <= 1_000_000:
+            return data, mime
+        if side > MAX_SIDE:
+            k = MAX_SIDE / side
+            pix = pymupdf.Pixmap(pix, max(1, int(pix.width * k)), max(1, int(pix.height * k)))
+        if pix.alpha:
+            pix = pymupdf.Pixmap(pix, 0)  # JPEG는 투명도를 못 담는다
+        if pix.colorspace and pix.colorspace.n not in (1, 3):
+            pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
+        out = pix.tobytes("jpeg", jpg_quality=85)
+        return (out, "image/jpeg") if len(out) < len(data) else (data, mime)
+    except Exception:
+        return data, mime
+
+
 def _cache_path(data: bytes) -> Path:
     return CACHE_DIR / f"{hashlib.sha256(data).hexdigest()}.txt"
 
@@ -45,6 +71,7 @@ def ocr_image(data: bytes) -> str:
     cp = _cache_path(data)
     if cp.exists():
         return cp.read_text(encoding="utf-8")
+    small, mime = shrink(data)  # 캐시 키는 원본 기준 (같은 이미지는 다시 읽지 않음)
     try:
         text = client.chat(
             [
@@ -52,12 +79,12 @@ def ocr_image(data: bytes) -> str:
                     "role": "user",
                     "content": [
                         {"type": "text", "text": PROMPT},
-                        client.image_part(data, sniff_mime(data)),
+                        client.image_part(small, mime),
                     ],
                 }
             ],
             settings.chatkhu_model_vision,
-            max_tokens=6000,  # 생각(thinking)에 쓰는 토큰이 있어 넉넉히
+            max_tokens=6000,  # 상한일 뿐 (생각은 CHATKHU_REASONING_EFFORT 로 줄임)
             timeout=120,
         ).strip()
     except client.LLMError as e:

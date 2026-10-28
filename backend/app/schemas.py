@@ -2,15 +2,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-INTEREST_KEYS = {
-    "dev_it",  # 개발·IT
-    "ai_data",  # AI·데이터
-    "design",  # 디자인
-    "scholarship",  # 장학금
-    "startup",  # 창업
-    "language_abroad",  # 어학·해외
-    "internship",  # 현장실습
-}
+from .taxonomy import INTEREST_KEYS  # noqa: E402  (관심 분야 키는 taxonomy.json)
 
 
 class Tags(BaseModel):
@@ -89,6 +81,9 @@ class NoticeDetail(FeedItem):
 class ChatIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     message: str = Field(min_length=1, max_length=500)
+    # 이어지는 질문용 (기기에만 저장된 대화에서 앞 질문 1개와 앞 답변의 공지 id만 보낸다. 서버는 저장하지 않는다)
+    prev: str = Field("", max_length=500)
+    context_ids: list[int] = Field(default_factory=list, max_length=6)
 
 
 class Evidence(BaseModel):

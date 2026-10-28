@@ -19,6 +19,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 from .. import clock
+from ..config import settings
 from ..models import Notice, NoticeChunk
 
 CHUNK_CHARS = 500
@@ -170,10 +171,16 @@ def get_index(db: Session) -> _Index:
     return _INDEX
 
 
-def search(db: Session, query: str, k: int = 5, include_expired: bool = False, min_coverage: float = 0.34) -> list[Hit]:
+def search(db: Session, query: str, k: int = 5, include_expired: bool = False, min_coverage: float = 0.34,
+           only_ids: set[int] | None = None) -> list[Hit]:
+    """only_ids: 이 공지들 안에서만 찾는다 (KHU AI의 이어지는 질문: 앞 답변에 나온 공지)"""
     idx = get_index(db)
-    allowed = None
+    # 지금 모드의 공지만 검색한다: 실제 모드(live)는 크롤링 공지만, 시연 모드(demo)는 [데모] 공지만
+    q = db.query(Notice.id).filter(Notice.is_demo.is_(settings.app_mode == "demo"))
     if not include_expired:
         now = clock.now()
-        allowed = {nid for (nid,) in db.query(Notice.id).filter((Notice.deadline.is_(None)) | (Notice.deadline >= now))}
+        q = q.filter((Notice.deadline.is_(None)) | (Notice.deadline >= now))
+    allowed = {nid for (nid,) in q}
+    if only_ids is not None:
+        allowed &= set(only_ids)
     return [h for h in idx.search(query, k * 3, allowed) if h.coverage >= min_coverage][:k]

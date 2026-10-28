@@ -13,4 +13,4 @@ router = APIRouter(prefix="/ai", tags=["ai"])
 @router.post("/chat", response_model=ChatOut)
 def chat(body: ChatIn, dev: Device = Depends(require_device), db: Session = Depends(get_db)):
     """질문 원문은 저장하지 않는다 (답변 캐시 키는 해시)."""
-    return answer(body.message, db, dev.tags or {})
+    return answer(body.message, db, dev.tags or {}, body.prev, body.context_ids)

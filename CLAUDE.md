@@ -9,7 +9,7 @@
   - `?mock=1` 을 붙이면 서버 없이 목업 데이터로 동작 (화면 확인용)
 - /app: Expo Go 껍데기. `src/app/index.tsx` 가 WebView로 `/web/` 을 띄우고, 원문·신청 링크는 기기 브라우저로 연다
   - 서버 주소는 `app/.env` 의 `EXPO_PUBLIC_API_BASE_URL` 한 곳에서만 바꾼다
-  - 예전 Expo 화면(src/app/onboarding.tsx, (tabs)/ 등)은 팀 결정 전까지 지우지 않는다
+  - 앱 코드는 `src/app/_layout.tsx`, `src/app/index.tsx`, `src/config.ts`, `src/nativeCalendar.ts` 넷뿐이다 (예전 네이티브 화면은 2026-10-28 삭제, git 기록에 있음)
 
 ## 절대 규칙
 - 이름·학번·정확한 학점은 서버/DB에 저장하지 않는다. 서버는 푸시 토큰 + 익명 조건 태그만 받는다.
@@ -44,6 +44,13 @@
 - 새 조건 추가 방법: extract.py EMPTY_CRITERIA, extract_llm.py SYSTEM 스키마(criteria + evidence)와 sanitize_criteria,
   verify.py VALUE_CHECKS(근거 안에 값이 있는지), matching/engine.py 판정 + EVIDENCE_KEYS, eval_extract.py FIELDS.
   생년·새터민·유학생 같은 민감 조건은 서버로 보내지 말고, 서버는 조건만 내려주고 기기(web/index.html)에서 판정한다.
+
+## 목록(학과·분류·관심 분야)과 토큰 절약
+- 학과→단과대·캠퍼스, 분류, 관심 분야 키워드는 `backend/app/taxonomy.json` 한 곳에만 둔다.
+  서버(판정·추출·KHU AI·입력 검사)는 `app/taxonomy.py`로 읽고, 앱은 `GET /meta`로 받는다 (HTML 안의 목록은 서버 연결 전 기본값).
+- AI 호출 절약: 같은 공지·이미지는 캐시, 확인 실패한 공지만 상위 모델, 생각 토큰 `CHATKHU_REASONING_EFFORT=low`,
+  추출은 JSON 응답 모드, 포스터는 긴 변 1600px로 줄여 전송, 빈 양식 첨부 제외. 게이트웨이가 옵션을 거부하면 자동으로 빼고 보낸다.
+  크롤링이 끝나면 토큰 사용량 합계를 출력한다 (실제 공지로 생각 수준 비교: `python -m app.llm.bench_effort` → `backend/eval/effort_bench.md`).
 
 ## 자동 수집
 - 서버 켤 때(live 모드) 마지막 수집이 AUTO_CRAWL_HOURS(기본 12)보다 오래됐으면 백그라운드 수집 (`crawler/auto.py`).

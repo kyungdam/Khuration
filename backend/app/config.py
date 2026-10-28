@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     chatkhu_model_vision: str = "gemini-3.8-flash"
     chatkhu_model_chat: str = "gemini-3.5-flash-lite"
     chatkhu_model_dev: str = "gpt-5.4-nano"
+    # 모델의 '생각' 토큰 양: low(기본, 절약) | medium | high | 빈칸(모델 기본값). 게이트웨이가 거부하면 자동으로 뺀다
+    chatkhu_reasoning_effort: str = "low"
 
     # 서버 켤 때 자동 수집 (live 모드에서만). 마지막 수집이 auto_crawl_hours 보다 오래됐으면 뒤에서 수집 시작
     auto_crawl: bool = True

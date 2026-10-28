@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import clock, models  # noqa: F401  (모델 등록)
+from . import clock, models, taxonomy  # noqa: F401  (모델 등록)
 from .config import settings
 from .crawler import auto as auto_crawl
 from .db import Base, SessionLocal, engine
@@ -30,6 +30,12 @@ app = FastAPI(title="Khuration API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"]
 )
+
+
+@app.get("/meta")
+def meta():
+    """앱 선택지(캠퍼스·학과·분류·관심 분야). 서버 판정과 같은 taxonomy.json을 쓴다."""
+    return taxonomy.meta()
 
 
 @app.get("/health")

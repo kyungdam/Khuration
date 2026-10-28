@@ -2,7 +2,6 @@
 // - HTML은 백엔드가 /web/ 으로 내려준다 → 서버 주소는 src/config.ts(app/.env) 한 곳에서만 바꾼다.
 // - 공지 원문·신청 링크는 HTML이 postMessage로 넘기면 기기 브라우저로 연다.
 // - "캘린더에 저장"은 HTML이 addCalendar를 보내면 폰 캘린더에도 넣고, 결과를 window.KhuNative로 돌려준다.
-// 예전 Expo 화면(onboarding, (tabs) 등)은 팀 결정 전까지 지우지 않고 남겨 둔다.
 import * as WebBrowser from "expo-web-browser";
 import React, { useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";

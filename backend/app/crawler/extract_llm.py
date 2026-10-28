@@ -159,8 +159,9 @@ def _call(model: str, raw: RawNotice, posted: str, body: str) -> dict:
             },
         ],
         model,
-        max_tokens=8000,  # 생각(thinking) + 근거 문장까지 넉넉히
+        max_tokens=8000,  # 상한일 뿐 (생각은 CHATKHU_REASONING_EFFORT=low 로 줄임)
         timeout=180,
+        json_mode=True,  # JSON 객체로만 답하게 (형식 오류·군더더기 출력 감소)
     )
     data = client.parse_json(out)
     try:

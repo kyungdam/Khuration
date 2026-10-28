@@ -14,6 +14,7 @@ from datetime import timedelta
 from sqlalchemy.orm import Session
 
 from .. import clock
+from ..config import settings
 from ..models import AnswerCache
 
 TTL = timedelta(hours=6)
@@ -22,7 +23,8 @@ TTL = timedelta(hours=6)
 def make_key(message: str, tags: dict, index_version: tuple, model: str) -> str:
     norm = " ".join(message.lower().split()).rstrip("?!. ")
     t = {k: v for k, v in (tags or {}).items() if k != "intent_keywords"}
-    raw = json.dumps([norm, t, list(index_version), clock.kst_date(clock.now()).isoformat(), model], sort_keys=True, ensure_ascii=False)
+    raw = json.dumps([norm, t, list(index_version), clock.kst_date(clock.now()).isoformat(), model, settings.app_mode],
+                     sort_keys=True, ensure_ascii=False)  # 모드가 바뀌면 다른 답 (실제/시연 공지가 섞이지 않게)
     return hashlib.sha256(raw.encode()).hexdigest()
 
 

@@ -143,7 +143,7 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
   };
 
   var DEFAULT_PROFILE = {
-    name: '김담우', campus: '국제캠퍼스', major: '화학공학과', grade: 3,
+    name: '홍길동', campus: '국제캠퍼스', major: '화학공학과', grade: 3,
     gpa: 3.87, lastGpa: 4.02, credits: 78, incomeBracket: 5,
     interests: ['개발·IT', 'AI·데이터', '디자인'], goal: '방학 때 AI 공모전 나가고 싶어'
   };
@@ -548,6 +548,29 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     categories: ['장학', '공모전', '현장실습', '국제교류', '근로', '비교과', '취업', '학사']
   };
   DEPTS.forEach(function (d) { META.majors[d[2] === 'seoul' ? '서울캠퍼스' : '국제캠퍼스'].push(d[0]); });
+
+  /** 서버 GET /meta(backend/app/taxonomy.json)로 선택지를 맞춘다. 서버 판정과 같은 목록을 쓰기 위해서.
+   *  위의 목록은 서버에 연결되기 전에 쓰는 기본값이다. */
+  function applyMeta(m) {
+    if (!m || !m.departments || !m.campuses) return;
+    var keyToLabel = {};
+    CAMPUS = {};
+    m.campuses.forEach(function (c) { CAMPUS[c.label] = c.key; keyToLabel[c.key] = c.label; });
+    DEPTS = m.departments.map(function (d) { return [d.dept, d.college, d.campus]; });
+    INTERESTS = (m.interests || []).map(function (i) { return [i.label, i.key]; });
+    META = {
+      campuses: m.campuses.map(function (c) { return c.label; }),
+      majors: {},
+      grades: m.grades || META.grades,
+      incomeBrackets: m.income_bands || META.incomeBrackets,
+      interests: INTERESTS.map(function (x) { return x[0]; }),
+      // 공지사항 탭 칩 순서는 화면 디자인 그대로 두고, 서버에만 있는 분류는 뒤에 붙인다
+      categories: META.categories.filter(function (c) { return (m.categories || []).indexOf(c) >= 0; })
+        .concat((m.categories || []).filter(function (c) { return META.categories.indexOf(c) < 0; }))
+    };
+    META.campuses.forEach(function (c) { META.majors[c] = []; });
+    DEPTS.forEach(function (d) { (META.majors[keyToLabel[d[2]]] = META.majors[keyToLabel[d[2]]] || []).push(d[0]); });
+  }
   var GENERIC_CHECKLIST = ['공지 원문 확인', '제출 서류 준비', '온라인 신청 완료'];
 
   /** 기기에만 있는 프로필 → 서버로 보내는 익명 태그 */
@@ -742,7 +765,10 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
   }
 
   var ServerApi = {
-    getMeta: async function () { return META; },
+    getMeta: async function () {
+      try { applyMeta(await raw('GET', '/meta')); } catch (e) { /* 서버가 예전 버전이면 기본 목록 사용 */ }
+      return META;
+    },
     getProfile: async function () { return store.get('profile', null); },
     saveProfile: async function (p) {
       store.set('profile', p);
@@ -846,7 +872,16 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
       return { threadId: threadId, messages: msgs };
     },
     chat: async function (message, threadId) {
-      var r = await http('POST', '/ai/chat', { message: message.slice(0, 500) });
+      // 이어지는 질문("그거 마감 언제야?")을 위해 앞 질문 1개와 앞 답변의 공지 id만 보낸다 (대화는 기기에만 저장)
+      var past = threadId ? (store.get('messages', {})[threadId] || []) : [];
+      var lastU = null, lastA = null;
+      for (var i = past.length - 1; i >= 0 && !(lastU && lastA); i--) {
+        if (!lastU && past[i].role === 'user') lastU = past[i];
+        if (!lastA && past[i].role === 'assistant') lastA = past[i];
+      }
+      var ctx = ((lastA && lastA.reply && lastA.reply.cards) || []).map(function (c) { return Number(c.id); })
+        .filter(function (n) { return n > 0; }).slice(0, 6);
+      var r = await http('POST', '/ai/chat', { message: message.slice(0, 500), prev: lastU ? String(lastU.text || '').slice(0, 500) : '', context_ids: ctx });
       // 출처: 답의 근거가 된 공지 제목 (없으면 기관 이름)
       var ev = [];
       (r.evidence || []).forEach(function (e) { if (ev.indexOf(e.title) < 0) ev.push(e.title); });
@@ -987,7 +1022,7 @@ const srcOf = (n) => (n.source && n.source.name) || n.organizer || '';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ---------- state ---------- */
-const DEF_PROFILE = { name: '김담우', campus: '국제캠퍼스', major: '화학공학과', grade: 3, interests: ['AI·데이터'], goal: '방학 때 AI 공모전 나가고 싶어' };
+const DEF_PROFILE = { name: '홍길동', campus: '국제캠퍼스', major: '화학공학과', grade: 3, interests: ['AI·데이터'], goal: '방학 때 AI 공모전 나가고 싶어' };
 const emptyForm = () => ({ name: '', campus: '', major: '', grade: '', gpa: '', last: '', credit: '', income: '', goal: '', picked: [] });
 const fresh = () => ({
   screen: 'Main', hist: [],

@@ -1,18 +1,8 @@
-"""조건 매칭. LLM이 아니라 코드가 판정한다. 일치 / 확인 필요 / 불일치 3상태."""
+"""조건 매칭. LLM이 아니라 코드가 판정한다. 일치 / 확인 필요 / 불일치 3상태.
+캠퍼스 이름, 학과→단과대(앱이 college를 안 보낼 때 보조), 분류→관심 키는 taxonomy.json 한 곳에서 관리한다."""
+from ..taxonomy import CAMPUS_LABEL, CATEGORY_KEY, COLLEGE_OF
+
 MATCH, CHECK, MISMATCH = "match", "check", "mismatch"
-
-CAMPUS_LABEL = {"seoul": "서울캠퍼스", "global": "국제캠퍼스"}
-
-# 앱이 college를 보내지 않을 때를 대비한 보조 매핑 (필요하면 추가)
-COLLEGE_OF = {
-    "화학공학과": "공과대학",
-    "기계공학과": "공과대학",
-    "전자공학과": "전자정보대학",
-    "컴퓨터공학과": "전자정보대학",
-    "산업경영공학과": "공과대학",
-    "건축공학과": "공과대학",
-}
-
 
 # 판정 항목 → 조건(criteria) 키. 새 조건을 추가하면 여기에도 넣는다 (근거 표시용)
 EVIDENCE_KEYS = {
@@ -139,15 +129,6 @@ def evaluate(criteria: dict | None, tags: dict) -> tuple[str, list[dict]]:
     statuses = {x["status"] for x in out}
     overall = MISMATCH if MISMATCH in statuses else CHECK if CHECK in statuses else MATCH
     return overall, out
-
-
-CATEGORY_KEY = {
-    "장학": "scholarship",
-    "현장실습": "internship",
-    "국제교류": "language_abroad",
-    "공모전": "contest",
-    "학사": "academic",
-}
 
 
 def topic_keys(topics: list | None, category: str | None = None) -> set[str]:

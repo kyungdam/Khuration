@@ -3,6 +3,7 @@
     python -m app.llm.ping                      # 텍스트 + JSON 테스트
     python -m app.llm.ping 이미지파일.png        # + 이미지 읽기 테스트
     python -m app.llm.ping 이미지파일.png --models gemini-3.8-flash gemini-3.5-flash
+    python -m app.llm.ping --effort ""                # 생각 토큰 비교: 모델 기본값 vs 기본(low)
 """
 import mimetypes
 import sys
@@ -17,7 +18,10 @@ def _run(name, fn):
     t = time.time()
     try:
         out = fn()
-        print(f"  OK  {name} ({time.time() - t:.1f}s)\n      {str(out)[:300]!r}")
+        u = client.last_usage or {}
+        think = client.think_tokens(u)
+        tok = f" · 토큰 입력 {u.get('prompt_tokens', '?')} / 출력 {u.get('completion_tokens', '?')}" + (f" (생각 {think})" if think is not None else "")
+        print(f"  OK  {name} ({time.time() - t:.1f}s{tok})\n      {str(out)[:300]!r}")
         return True
     except client.LLMError as e:
         print(f"  FAIL {name}: {e}")
@@ -28,6 +32,11 @@ def main(argv):
     if not client.available():
         print(".env 에 CHATKHU_API_KEY / CHATKHU_BASE_URL 이 없습니다.")
         return 1
+    if "--effort" in argv:  # 생각 토큰 비교용: --effort low / --effort "" (모델 기본값)
+        i = argv.index("--effort")
+        settings.chatkhu_reasoning_effort = argv[i + 1] if i + 1 < len(argv) else ""
+        argv = argv[:i] + argv[i + 2 :]
+    print("생각 수준(reasoning_effort):", settings.chatkhu_reasoning_effort or "(모델 기본값)")
     models = None
     if "--models" in argv:
         i = argv.index("--models")
