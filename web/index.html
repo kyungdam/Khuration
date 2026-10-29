@@ -2013,8 +2013,16 @@ const ACT = {
       return;
     }
     S.saving = true; render();
+    const save = () => Api.saveProfile(formToProfile(S.form));
     try {
-      S.profile = await Api.saveProfile(formToProfile(S.form)) || formToProfile(S.form);
+      let saved;
+      // 응답 코드가 없는 실패(연결 끊김)는 잠깐 뒤 한 번 더 보낸다 — 공개 링크(터널)가 몇 초씩 끊길 때가 있다
+      try { saved = await save(); } catch (e) {
+        if (e && e.status) throw e;
+        await new Promise((r) => setTimeout(r, 1500));
+        saved = await save();
+      }
+      S.profile = saved || formToProfile(S.form);
       S.showErr = false;
       invalidate();
       S.saving = false;
@@ -2022,7 +2030,7 @@ const ACT = {
     } catch (e) {
       console.error(e);
       S.saving = false; render();
-      toast('정보를 저장하지 못했어요. 다시 시도해 주세요');
+      toast(e && e.status ? '정보를 저장하지 못했어요. 다시 시도해 주세요' : '서버에 연결하지 못했어요. 잠시 후 다시 눌러 주세요');
     }
   },
 
