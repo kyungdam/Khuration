@@ -356,8 +356,23 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     return { noticeId: id, title: n.title, organizer: n.organizer, deadline: calDate(id), picked: !n.deadline, items: c.items, alarm: alarm };
   }
   function mockPrefs() {
-    if (!db.alertPrefs) db.alertPrefs = { deadline: { on: true, days: [3, 1] }, fresh: { on: true, scope: 'match', cats: [] }, changed: { on: true, savedOnly: false } };
+    if (!db.alertPrefs) db.alertPrefs = { deadline: { on: true, days: [7, 3, 1] }, changed: { on: true } };
     return JSON.parse(JSON.stringify(db.alertPrefs));
+  }
+  /** 목업 알림함: 저장한 공지 중 마감이 고른 'N일 전' 안에 든 공지 (서버판 scanDeadlines와 같은 규칙) */
+  function mockAlerts() {
+    var pr = mockPrefs();
+    if (!pr.deadline.on) return [];
+    var days = pr.deadline.days.slice().sort(function (a, b) { return a - b; });
+    db.alertRead = db.alertRead || {};
+    return Object.keys(db.calendar).map(function (id) {
+      var date = calDate(id);
+      var d = date ? Math.round((new Date(date + 'T00:00:00') - today()) / 86400000) : null;
+      var hit = d === null || d < 0 || !ensureChecklist(id).alarm.enabled ? undefined : days.filter(function (x) { return d <= x; })[0];
+      if (hit === undefined) return null;
+      var key = 'm-' + id + '-' + hit;
+      return { id: key, kind: 'd3', noticeId: id, title: d === 0 ? '오늘 마감' : '마감 D-' + d, body: byId[id].title, at: C.MOCK_TODAY + 'T09:00:00', read: !!db.alertRead[key] };
+    }).filter(Boolean);
   }
 
   /* ---------- 챗봇 응답 규칙 (실서버에서는 LLM + 검색으로 대체) ---------- */
@@ -480,7 +495,13 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     getAlertPrefs: function () { return delay(mockPrefs()); },
     setAlertPrefs: function (p) { db.alertPrefs = JSON.parse(JSON.stringify(p)); return delay(mockPrefs()); },
 
-    getUnreadCount: function () { return delay({ count: db.unread }); },
+    getUnreadCount: function () { return delay({ count: mockAlerts().filter(function (a) { return !a.read; }).length }); },
+    listAlerts: function () { return delay({ alerts: mockAlerts() }); },
+    markAlertsRead: function (id) {
+      db.alertRead = db.alertRead || {};
+      mockAlerts().forEach(function (a) { if (!id || a.id === id) db.alertRead[a.id] = true; });
+      return delay(null);
+    },
 
     listThreads: function () {
       var threads = db.threads.slice().sort(function (a, b) { return a.updatedAt < b.updatedAt ? 1 : -1; });
@@ -782,15 +803,14 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
 
   /* ---------- 앱 안 알림함 ----------
    * 웹 앱(Expo Go WebView)은 원격 푸시가 없어서, 알림을 기기 안 목록으로 모아 보여준다.
-   *  new     : 맞춤 피드에 처음 보이는 공지 (첫 화면 진입 때 본 공지는 기준으로만 저장)
-   *  changed : 전에 본 공지의 제목·마감일이 바뀜
-   *  d3      : 캘린더에 저장하고 알림을 켠 공지의 마감이 알림 설정의 'N일 전' 안으로 들어옴
-   * 무엇을 언제 받을지는 알림 설정(alertPrefs)을 따른다. 같은 알림은 key로 한 번만 넣는다. 모두 기기(localStorage)에만 있다. */
+   * 알림함에는 캘린더에 저장한 공지에 대한 알림만 넣는다 (맞춤 공지 추천은 홈에서 보여 주고 알림으로 보내지 않는다).
+   *  changed : 저장한 공지의 제목·마감일이 바뀜
+   *  d3      : 저장한 공지(알림 켬)의 마감이 알림 설정의 'N일 전' 안으로 들어옴
+   * 언제 받을지는 알림 설정(alertPrefs)을 따른다. 같은 알림은 key로 한 번만 넣는다. 모두 기기(localStorage)에만 있다. */
   var MAX_ALERTS = 50;
   var DEFAULT_PREFS = {
-    deadline: { on: true, days: [3, 1] },          // 저장한 공지 마감 N일 전 (0 = 당일)
-    fresh: { on: true, scope: 'match', cats: [] },  // 새 맞춤 공지: match = 지원 가능만, all = 확인 필요도 / cats 비면 전체 분류
-    changed: { on: true, savedOnly: false }         // 공지 변경: 저장한 공지만 또는 맞춤 공지 전체
+    deadline: { on: true, days: [7, 3, 1] },  // 저장한 공지 마감 N일 전 (0 = 당일). 폰 캘린더 일정 알림도 이 날들(당일 제외)
+    changed: { on: true }                     // 저장한 공지의 마감일·제목 변경
   };
   function alertPrefs() {
     var p = store.get('alertPrefs', null) || {};
@@ -808,27 +828,25 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     store.set('alerts', list.slice(0, MAX_ALERTS));
     store.set('alertKeys', keys);
   }
-  function scanFeed(list) {
+  /** 목록을 받을 때마다 본 공지의 제목·마감일을 기억하고, 저장한 공지가 바뀌었으면 알린다 */
+  function scanChanges(list) {
     var seen = store.get('seen', {});
-    var first = !store.get('alertsInit', false);
     var pr = alertPrefs();
     var cal = store.get('calendar', {});
     list.forEach(function (n) {
       var prev = seen[n.id];
-      if (!prev) {
-        var wantNew = pr.fresh.on && (pr.fresh.scope === 'all' || n.status === 'match') &&
-          (!pr.fresh.cats.length || pr.fresh.cats.indexOf(n.category) >= 0);
-        if (!first && wantNew) addAlert('new', n.id, '새 맞춤 공지', n.title, 'new:' + n.id);
-      } else if (prev.d !== n.deadline || prev.t !== n.title) {
+      if (prev && (prev.d !== n.deadline || prev.t !== n.title) && pr.changed.on && cal[n.id]) {
         var what = prev.d !== n.deadline ? '마감일 ' + (prev.d || '없음') + ' → ' + (n.deadline || '없음') : '제목 변경';
-        if (pr.changed.on && (!pr.changed.savedOnly || cal[n.id])) {
-          addAlert('changed', n.id, '공지가 변경됐어요 · ' + what, n.title, 'changed:' + n.id + ':' + n.deadline + ':' + n.title);
-        }
+        addAlert('changed', n.id, '공지가 변경됐어요 · ' + what, n.title, 'changed:' + n.id + ':' + n.deadline + ':' + n.title);
       }
       seen[n.id] = { t: n.title, d: n.deadline };
     });
     store.set('seen', seen);
-    if (first) store.set('alertsInit', true);
+  }
+  /** 알림함에 보일 알림: 지금 캘린더에 저장돼 있는 공지에 대한 것만 (예전에 쌓인 맞춤 공지 알림은 숨긴다) */
+  function savedAlerts() {
+    var cal = store.get('calendar', {});
+    return store.get('alerts', []).filter(function (a) { return a.kind !== 'new' && a.noticeId && cal[a.noticeId]; });
   }
   /** 저장한 공지마다, 고른 'N일 전' 중 지금 남은 날 수(d)가 처음 들어온 가장 가까운 N에서 한 번 알린다.
    *  예) 3일 전·1일 전: D-2에 열면 '3일 전' 알림, D-1에 '1일 전' 알림. 당일(0)을 고르면 그날 한 번 더 */
@@ -865,7 +883,7 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     getRecommendations: async function () {
       // 서버는 불일치를 이미 뺐고, 기기 판정(출생 연도·나이)으로 불일치가 된 공지도 추천에서 뺀다
       var list = (await http('GET', '/feed')).map(toSummary).filter(function (n) { return n.eligible; });
-      scanFeed(list);
+      scanChanges(list);
       var top = list.filter(function (n) { return n.status === 'match'; })[0] || list[0] || null;
       return { top: top, items: list.filter(function (n) { return n !== top; }).slice(0, 4) };
     },
@@ -873,6 +891,7 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     listNotices: async function (query) {
       query = query || {};
       var list = (await http('GET', '/notices' + qs({ q: query.q, category: query.category, sort: query.sort }))).map(toSummary);
+      scanChanges(list);
       if (String(query.eligibleOnly) === 'true') list = list.filter(function (n) { return n.eligible; });
       if (query.sort === 'deadline') list = list.filter(function (n) { return n.deadline; });
       var total = list.length;
@@ -941,11 +960,11 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     /** 앱 안 알림함의 안 읽은 수. 부를 때 알림 설정에 맞춰 저장한 공지의 마감 알림을 알림함에 채운다 */
     getUnreadCount: async function () {
       scanDeadlines();
-      return { count: store.get('alerts', []).filter(function (a) { return !a.read; }).length };
+      return { count: savedAlerts().filter(function (a) { return !a.read; }).length };
     },
     listAlerts: async function () {
       scanDeadlines();
-      return { alerts: store.get('alerts', []) };
+      return { alerts: savedAlerts() };
     },
     markAlertsRead: async function (id) {
       var list = store.get('alerts', []);
@@ -953,10 +972,11 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
       store.set('alerts', list);
       return null;
     },
-    /** 시연 패널 '알림 보내 보기' 결과(서버 미리보기)를 알림함에 넣는다 */
+    /** 시연 패널 '알림 보내 보기' 결과(서버 미리보기)를 알림함에 넣는다 — 저장한 공지에 대한 것만 */
     recordPush: function (kind, r) {
       if (!r || !r.preview) return;
       var nid = r.preview.data && r.preview.data.notice_id;
+      if (nid == null || !store.get('calendar', {})[String(nid)]) return;
       addAlert(kind, nid != null ? String(nid) : null, r.preview.title, r.preview.body, kind + ':' + nid + ':' + todayKey());
     },
 
@@ -1211,7 +1231,7 @@ const NEEDS = {
   Main: [], Onboarding: ['meta'], HomeAI: ['recs', 'unread'], HomeDeadline: ['deadline', 'unread'],
   Notices: ['meta', 'notices'], NoticeDetail: ['detail'], Calendar: ['calendar'], CalendarChecklist: ['checklist'],
   ChatThreads: ['threads'], Chat: [], Demo: ['server'], Alerts: ['alerts'], Widget: ['recs', 'deadline'],
-  Settings: [], AlertSettings: ['meta', 'prefs']
+  Settings: [], AlertSettings: ['prefs']
 };
 async function load(keys) {
   const screen = S.screen;
@@ -1758,7 +1778,7 @@ R.Alerts = () => {
     </div>
   </div>
   <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-    ${loadingOr(list, 72, () => (list.length ? list.map(row).join('') : `<div class="errbox"><span style="font-size:15px;font-weight:600">아직 알림이 없어요</span><span style="font-size:12px;color:#5E4E53">새 맞춤 공지, 공지 변경, 저장한 공지의 마감 알림이 여기 모여요 · 받을 알림은 오른쪽 위 설정에서 고를 수 있어요</span></div>`))}
+    ${loadingOr(list, 72, () => (list.length ? list.map(row).join('') : `<div class="errbox"><span style="font-size:15px;font-weight:600">아직 알림이 없어요</span><span style="font-size:12px;color:#5E4E53">캘린더에 저장한 공지의 마감 알림과 변경 알림만 여기 모여요 · 알림 시점은 오른쪽 위 설정에서 고를 수 있어요</span></div>`))}
   </div>
   <p style="margin:16px 4px 24px;font-size:11px;line-height:1.6;color:#786A6E">앱 출시 빌드에서는 폰 알림으로 받아요. 지금(Expo Go 시연판)은 원격 푸시가 없어서 앱 안에 모아 보여드려요. 알림 기록은 이 기기에만 저장돼요.</p>
 </main></div>`;
@@ -1775,7 +1795,7 @@ R.Settings = () => {
   ${subHeader('설정')}
   <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
     ${row('Onboarding', 'list', '개인화 정보 수정', '학년 · 학과 · 학점 · 소득분위 · 관심 분야 · 하고 싶은 활동')}
-    ${row('AlertSettings', 'bell', '알림 설정', '마감 알림 시점 · 새 맞춤 공지 · 공지 변경')}
+    ${row('AlertSettings', 'bell', '알림 설정', '저장한 공지의 마감 알림 시점 · 공지 변경')}
   </div>
   <p style="margin:16px 4px 24px;font-size:11px;line-height:1.6;color:#786A6E">입력한 정보와 알림 설정은 이 기기에만 저장돼요. 서버에는 조건 구간 태그만 보내요.</p>
 </main></div>`;
@@ -1784,26 +1804,20 @@ R.Settings = () => {
 /* 알림 설정: 무엇을, 언제 받을지 고른다 (기기에만 저장, 알림함이 이 설정을 따른다) */
 R.AlertSettings = () => {
   const p = S.data.prefs;
-  const cats = S.meta ? S.meta.categories : [];
-  const sw = (k, on, label) => `<button type="button" class="sw${on ? ' on' : ''}" role="switch" aria-checked="${on}" aria-label="${label}" data-act="prefToggle" data-k="${k}"></button>`;
+  const sw =(k, on, label) => `<button type="button" class="sw${on ? ' on' : ''}" role="switch" aria-checked="${on}" aria-label="${label}" data-act="prefToggle" data-k="${k}"></button>`;
   const chip = (act, v, on, label) => `<button type="button" class="chip${on ? ' on' : ''}" aria-pressed="${on}" data-act="${act}" data-v="${esc(String(v))}" style="height:40px">${on ? ic('check', 16, 'stroke-width:2.4') : ''}${esc(label)}</button>`;
-  const seg = (act, v, on, label) => `<button type="button" class="seg${on ? ' on' : ''}" aria-pressed="${on}" data-act="${act}" data-v="${v}">${on ? ic('check', 16, 'stroke-width:2.4') : ''}${label}</button>`;
   const card = (k, on, title, desc, body) => `<section class="card" style="padding:16px;display:flex;flex-direction:column;gap:12px">
     <div style="display:flex;align-items:center;gap:12px"><div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:700">${title}</span><span style="font-size:12px;color:#5E4E53">${desc}</span></div>${sw(k, on, title)}</div>
     ${on ? body : ''}</section>`;
   const sub = (t) => `<span style="font-size:12px;font-weight:600;color:#786A6E">${t}</span>`;
-  const body = !p ? `${skel(120)}${skel(160)}${skel(120)}` : `
+  const body = !p ? `${skel(120)}${skel(80)}` : `
     ${card('deadline', p.deadline.on, '마감 알림', '캘린더에 저장한 공지의 마감이 다가오면 알려요',
       `${sub('언제 받을까요 (여러 개 선택)')}<div style="display:flex;flex-wrap:wrap;gap:8px">${[7, 3, 1, 0].map((d) => chip('prefDay', d, p.deadline.days.indexOf(d) >= 0, dayLabel(d))).join('')}</div>`)}
-    ${card('fresh', p.fresh.on, '새 맞춤 공지', '내 조건에 맞는 공지가 새로 올라오면 알려요',
-      `${sub('어떤 공지까지')}<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${seg('prefScope', 'match', p.fresh.scope === 'match', '지원 가능한 공지만')}${seg('prefScope', 'all', p.fresh.scope === 'all', '확인 필요 공지도')}</div>
-       ${sub(`받을 분류 · ${p.fresh.cats.length ? `${p.fresh.cats.length}개 선택` : '선택 안 하면 전체'}`)}<div style="display:flex;flex-wrap:wrap;gap:8px">${cats.map((c) => chip('prefCat', c, p.fresh.cats.indexOf(c) >= 0, c)).join('')}</div>`)}
-    ${card('changed', p.changed.on, '공지 변경', '마감일이나 제목이 바뀌면 알려요',
-      `${sub('어떤 공지')}<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px">${seg('prefChanged', 'saved', p.changed.savedOnly, '저장한 공지만')}${seg('prefChanged', 'all', !p.changed.savedOnly, '맞춤 공지 전체')}</div>`)}`;
+    ${card('changed', p.changed.on, '공지 변경', '저장한 공지의 마감일이나 제목이 바뀌면 알려요', '')}`;
   return `<div class="scr"><main class="main ns" data-scroll="aset">
   ${subHeader('알림 설정')}
   <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">${S.err.AlertSettings && !p ? errBox(S.err.AlertSettings) : body}</div>
-  <p style="margin:16px 4px 24px;font-size:11px;line-height:1.6;color:#786A6E">알림은 앱을 열 때 이 기기에서 만들어 종 아이콘 알림함에 모아요 (시연판은 원격 푸시가 없어요). 공지별 마감 알림은 체크리스트 화면에서 끌 수 있어요. 폰 캘린더에 넣은 일정은 마감 3일 전에 울려요.</p>
+  <p style="margin:16px 4px 24px;font-size:11px;line-height:1.6;color:#786A6E">알림함에는 캘린더에 저장한 공지의 알림만 모여요 (맞춤 공지 추천은 홈에서 보여 줘요). 공지별 마감 알림은 체크리스트 화면에서 끌 수 있어요. 폰 캘린더에 넣는 일정도 여기서 고른 날(당일 제외)에 울려요 · 이미 넣은 일정은 넣을 때 설정 그대로예요.</p>
 </main></div>`;
 };
 
@@ -1867,11 +1881,11 @@ R.Demo = () => {
       <span style="font-size:20px;font-weight:700;color:${B}">${sv ? `${full(sv.today)}` : '불러오는 중…'}</span>
       <span style="font-size:12px;color:#5E4E53">${off ? `실제보다 ${off}일 앞당김` : '실제 날짜'} · 시연 공지([데모])만 보여요</span>
     </div>
-    ${sec('시계 앞당기기', '마감이 다가오는 상황을 만들어요. 캘린더에 저장한 공지가 3일 안으로 들어오면 종 아이콘에 표시돼요.',
+    ${sec('시계 앞당기기', '마감이 다가오는 상황을 만들어요. 캘린더에 저장한 공지가 알림 설정의 날(기본 7·3·1일 전) 안으로 들어오면 종 아이콘에 표시돼요.',
     btn('demoClock', '+1일', 'data-days="1"') + btn('demoClock', '+3일', 'data-days="3"') + btn('demoClock', '+7일', 'data-days="7"') + btn('demoReset', '실제 날짜로'))}
-    ${sec('알림 보내 보기', '이 기기에 맞는 공지로 알림을 만들어 앱 안에 보여줘요 (웹 앱은 원격 푸시가 없어요).',
-    btn('demoPush', '마감 임박 알림', 'data-kind="d3"', true) + btn('demoPush', '새 맞춤 공지 알림', 'data-kind="new"'))}
-    ${sec('공지 변경', '추천 1순위 공지의 마감일을 바꾸고 "공지가 변경됐어요" 알림을 보내요.',
+    ${sec('알림 보내 보기', '캘린더에 저장한 공지 중 마감이 가장 가까운 공지로 마감 알림을 만들어 앱 안에 보여줘요 (웹 앱은 원격 푸시가 없어요).',
+    btn('demoPush', '마감 임박 알림', 'data-kind="d3"', true))}
+    ${sec('공지 변경', '저장한 공지 중 마감이 가장 가까운 공지의 마감일을 바꾸고 "공지가 변경됐어요" 알림을 보내요.',
     btn('demoChange', '마감을 D-2로 바꾸기'))}
     ${sec('시연 공지 초기화', '시연 공지를 처음 상태로 다시 넣고 시계도 되돌려요. 북마크·캘린더 저장도 비워져요.',
     btn('demoReseed', '시연 공지 다시 넣기'))}
@@ -1969,12 +1983,13 @@ const nativeCal = {
   get: () => { try { return JSON.parse(localStorage.getItem('khu.nativeCal') || '{}'); } catch (e) { return {}; } },
   set: (v) => { try { localStorage.setItem('khu.nativeCal', JSON.stringify(v)); } catch (e) { /* 저장 못 해도 동작 */ } }
 };
-function addToPhoneCalendar(id, ev) {
+/** alarmDays: 알림 설정의 '마감 N일 전'(당일 0은 앱이 뺀다) → 폰 캘린더 일정 알림 */
+function addToPhoneCalendar(id, ev, alarmDays) {
   if (!window.ReactNativeWebView || !ev || !ev.date) return;
   if (nativeCal.get()[id]) return;
   const d = S.data.detail[id];
   window.ReactNativeWebView.postMessage(JSON.stringify({
-    type: 'addCalendar', id: String(id), title: ev.title, date: ev.date, url: (d && d.originalUrl) || ''
+    type: 'addCalendar', id: String(id), title: ev.title, date: ev.date, url: (d && d.originalUrl) || '', alarmDays: alarmDays || [7, 3, 1]
   }));
 }
 window.KhuNative = (m) => {
@@ -1986,6 +2001,8 @@ const invalidate = () => {
   S.data.recs = null; S.data.deadline = null; S.data.notices = null;
   S.data.detail = {}; S.data.calendar = {}; S.data.checklist = {}; S.data.week = {};
 };
+/** 캘린더에 저장한 공지 중 오늘 이후 가장 가까운 것 (시연 패널 알림·공지 변경 대상) */
+const nearestSaved = async () => (await Api.getCalendar(isoOf(TODAY), '9999-12-31')).events[0] || null;
 /** 알림 설정 한 군데를 바꾸고 바로 저장한다. change가 false를 돌려주면 바꾸지 않는다 */
 async function savePrefs(change) {
   const p = S.data.prefs;
@@ -2057,7 +2074,7 @@ async function send(text) {
 const ACT = {
   retry: () => { delete S.err[S.screen]; render(); refresh(); },
   back: () => back(),
-  bell: () => (C.USE_MOCK ? toast(S.data.unread ? `새 맞춤 공지 ${S.data.unread}건이 도착했어요` : '새 알림이 없어요') : go('Alerts')),
+  bell: () => go('Alerts'),
   readAll: async () => { await Api.markAlertsRead(); await L.alerts(); S.data.unread = 0; render(); },
   openAlert: async (d) => {
     await Api.markAlertsRead(d.id);
@@ -2068,14 +2085,17 @@ const ACT = {
   /* 시연 패널 */
   demoClock: (d) => demoRun(`시계 +${d.days}일`, async () => { await Api.demo.advanceClock(Number(d.days)); return `시계를 ${d.days}일 앞당겼어요`; }),
   demoReset: () => demoRun('시계 초기화', async () => { await Api.demo.resetClock(); return '실제 날짜로 돌아왔어요'; }),
-  demoPush: (d) => demoRun(d.kind === 'd3' ? '마감 임박 알림' : '새 맞춤 공지 알림', async () => {
-    const r = await Api.demo.firePush(d.kind);
+  demoPush: (d) => demoRun('마감 임박 알림', async () => {
+    const saved = await nearestSaved();
+    if (!saved) return '캘린더에 저장한 공지가 없어요 · 먼저 공지를 저장해 주세요';
+    const r = await Api.demo.firePush(d.kind, saved.noticeId);
     if (Api.recordPush) Api.recordPush(d.kind, r);
     return pushText(r);
   }),
   demoChange: () => demoRun('공지 변경', async () => {
-    const top = (await Api.getRecommendations()).top;
-    if (!top) return '바꿀 추천 공지가 없어요';
+    const saved = await nearestSaved();
+    if (!saved) return '캘린더에 저장한 공지가 없어요 · 먼저 공지를 저장해 주세요';
+    const top = { id: saved.noticeId };
     await Api.demo.changeNotice(top.id, 2);
     const r = await Api.demo.firePush('changed', top.id);
     if (Api.recordPush) Api.recordPush('changed', r);
@@ -2170,7 +2190,10 @@ const ACT = {
     const picker = S.screen === 'NoticeDetail' ? document.getElementById('calDate') : null;
     try {
       const ev = await Api.addToCalendar(id, picker ? picker.value : undefined);
-      if (!ev.picked) addToPhoneCalendar(id, ev); // 고른 날짜는 마감일이 아니라서 폰 캘린더 '[마감]' 일정으로 넣지 않는다
+      if (!ev.picked) { // 고른 날짜는 마감일이 아니라서 폰 캘린더 '[마감]' 일정으로 넣지 않는다
+        const pr = await Api.getAlertPrefs();
+        addToPhoneCalendar(id, ev, pr.deadline.on ? pr.deadline.days : []);
+      }
       invalidate();
       S.month = (ev && ev.date ? ev.date : isoOf(TODAY)).slice(0, 7);
       go('Calendar');
@@ -2227,9 +2250,6 @@ const ACT = {
     if (i >= 0 && p.deadline.days.length === 1) { toast('알림 시점을 하나 이상 골라 주세요'); return false; }
     if (i >= 0) p.deadline.days.splice(i, 1); else p.deadline.days.push(v);
   }),
-  prefScope: (d) => savePrefs((p) => { p.fresh.scope = d.v; }),
-  prefCat: (d) => savePrefs((p) => { const i = p.fresh.cats.indexOf(d.v); if (i >= 0) p.fresh.cats.splice(i, 1); else p.fresh.cats.push(d.v); }),
-  prefChanged: (d) => savePrefs((p) => { p.changed.savedOnly = d.v === 'saved'; }),
 
   alarm: async () => {
     const id = S.checklistId;

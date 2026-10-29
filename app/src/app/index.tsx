@@ -30,7 +30,7 @@ export default function WebShell() {
   };
 
   const onMessage = async (e: WebViewMessageEvent) => {
-    let m: { type?: string; url?: string; id?: string; title?: string; date?: string };
+    let m: { type?: string; url?: string; id?: string; title?: string; date?: string; alarmDays?: number[] };
     try {
       m = JSON.parse(e.nativeEvent.data);
     } catch {
@@ -39,8 +39,9 @@ export default function WebShell() {
     if (m.type === "openUrl" && m.url) openExternal(m.url);
     if (m.type === "addCalendar" && m.id && m.title && m.date) {
       try {
-        await addDeadlineToPhoneCalendar(m.title, m.date, m.url ?? "");
-        reply({ type: "calendarResult", id: m.id, ok: true, message: "폰 캘린더에도 추가했어요 (마감 3일 전 알림)" });
+        const days = await addDeadlineToPhoneCalendar(m.title, m.date, m.url ?? "", m.alarmDays);
+        const when = days.length ? ` (마감 ${days.join("·")}일 전 알림)` : "";
+        reply({ type: "calendarResult", id: m.id, ok: true, message: `폰 캘린더에도 추가했어요${when}` });
       } catch (err) {
         reply({ type: "calendarResult", id: m.id, ok: false, message: err instanceof Error ? err.message : "폰 캘린더에 추가하지 못했어요" });
       }

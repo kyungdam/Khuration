@@ -78,7 +78,8 @@
 화면 코드는 `window.KhuApi` 만 부른다. 서버용 구현은 index.html 안의 "KHURATION API 클라이언트 — 우리 FastAPI 서버용" 스크립트.
 앱(기기 localStorage)에만 저장: 이름, 정확한 평균 학점/직전 평점/취득 학점, '하고 싶은 활동' 원문,
 출생 연도(선택 입력, 기기 판정용), 북마크, 캘린더에 저장한 공지, 체크리스트, 마감 알림 설정, KHU AI 대화 기록.
-기기 토큰은 `web-<uuid>` (Expo 푸시 토큰 아님 → 원격 푸시 없음. 시연 알림은 앱 안 종 아이콘: 저장한 공지 중 마감 3일 이내).
+기기 토큰은 `web-<uuid>` (Expo 푸시 토큰 아님 → 원격 푸시 없음. 시연 알림은 앱 안 종 아이콘: 캘린더에 저장한 공지만 — 마감 'N일 전'(기기 알림 설정 `alertPrefs`, 기본 7·3·1일)과 변경. 맞춤 공지 추천은 알림으로 보내지 않는다.
+폰 캘린더 일정 알림도 같은 날들(당일 제외), `app/src/nativeCalendar.ts`).
 서버로 보내는 태그 (`POST /devices`, 헤더 없이 body로 push_token + tags):
 - campus: "seoul" | "global"
 - college, dept: 학과 선택 값 (college는 선택)
