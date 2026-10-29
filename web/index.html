@@ -111,6 +111,9 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
   };
   if (params.has('mock')) config.USE_MOCK = params.get('mock') !== '0';
   if (params.has('api')) config.API_BASE = params.get('api').replace(/\/$/, '');
+  // 파일을 더블클릭해 열면(file://) 붙을 서버가 없으니 목업 데이터로 보여준다. ?mock=0&api=… 로 서버를 직접 지정하면 그대로 둔다
+  config.FILE_MOCK = window.location.protocol === 'file:' && !params.has('mock') && !params.has('api');
+  if (config.FILE_MOCK) config.USE_MOCK = true;
   window.KHU_CONFIG = config;
 })();
 </script>
@@ -2225,6 +2228,7 @@ async function init() {
 fit();
 render(true);
 init();
+if (C.FILE_MOCK) setTimeout(() => toast('파일로 열어서 예시 데이터로 보여 줘요 · 실제 공지는 서버 주소로 열어 주세요'), 600);
 })();
 </script>
 </body>

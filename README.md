@@ -58,7 +58,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 브라우저에서 `http://localhost:8000/web/` 을 열면 앱 화면이 나옵니다.
-서버 없이 화면만 보려면 `web/index.html?mock=1` (목업 데이터).
+서버 없이 화면만 보려면 `web/index.html` 파일을 더블클릭해 열면 됩니다 (자동으로 목업 데이터, 서버 주소로 열 때는 `?mock=1`).
 
 `.env` 주요 값 (`backend/.env.example` 참고, 키는 커밋하지 않음)
 
