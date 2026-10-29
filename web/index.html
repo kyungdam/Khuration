@@ -166,9 +166,10 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
   function delay(value) {
     return new Promise(function (resolve) { setTimeout(function () { resolve(clone(value)); }, C.MOCK_LATENCY_MS); });
   }
-  function fail(status, message) {
+  function fail(status, message, code) {
     var e = new Error(message);
     e.status = status;
+    e.code = code || null;
     return new Promise(function (_, reject) { setTimeout(function () { reject(e); }, C.MOCK_LATENCY_MS); });
   }
 
@@ -308,6 +309,7 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     }
     return db.checklists[id];
   }
+  function calDate(id) { var v = db.calendar[id]; return v ? (byId[id].deadline || v.date || null) : null; }
   function progress(id) {
     if (!db.calendar[id]) return null;
     var items = ensureChecklist(id).items;
@@ -346,7 +348,7 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
   function toChecklist(id) {
     var n = byId[id];
     var c = ensureChecklist(id);
-    return { noticeId: id, title: n.title, organizer: n.organizer, deadline: n.deadline, items: c.items, alarm: c.alarm };
+    return { noticeId: id, title: n.title, organizer: n.organizer, deadline: calDate(id), picked: !n.deadline, items: c.items, alarm: c.alarm };
   }
 
   /* ---------- 챗봇 응답 규칙 (실서버에서는 LLM + 검색으로 대체) ---------- */
@@ -429,17 +431,23 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
       return delay(null);
     },
 
-    addToCalendar: function (id) {
+    addToCalendar: function (id, date) {
       if (!byId[id]) return fail(404, '공지를 찾을 수 없어요');
-      db.calendar[id] = true;
-      ensureChecklist(id);
       var n = byId[id];
-      return delay({ noticeId: id, date: n.deadline, category: n.category, title: n.title, checklist: progress(id) });
+      if (!n.deadline && !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return fail(422, '마감일이 없는 공지예요. 저장할 날짜를 골라 주세요', 'NEED_DATE');
+      db.calendar[id] = n.deadline ? true : { date: date };
+      ensureChecklist(id);
+      return delay({ noticeId: id, date: calDate(id), picked: !n.deadline, category: n.category, title: n.title, checklist: progress(id) });
+    },
+    removeFromCalendar: function (id) {
+      delete db.calendar[id];
+      delete db.checklists[id];
+      return delay(null);
     },
 
     getCalendar: function (from, to) {
-      var events = NOTICES.filter(function (n) { return db.calendar[n.id] && n.deadline >= from && n.deadline <= to; })
-        .map(function (n) { return { noticeId: n.id, date: n.deadline, category: n.category, title: n.title, checklist: progress(n.id) }; })
+      var events = NOTICES.filter(function (n) { var d = calDate(n.id); return d && d >= from && d <= to; })
+        .map(function (n) { return { noticeId: n.id, date: calDate(n.id), picked: !n.deadline, category: n.category, title: n.title, checklist: progress(n.id) }; })
         .sort(function (a, b) { return a.date > b.date ? 1 : -1; });
       return delay({ events: events });
     },
@@ -510,7 +518,7 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
 (function () {
   var C = window.KHU_CONFIG;
 
-  function ApiError(status, message) { this.name = 'ApiError'; this.status = status; this.message = message; }
+  function ApiError(status, message, code) { this.name = 'ApiError'; this.status = status; this.message = message; this.code = code || null; }
   ApiError.prototype = Object.create(Error.prototype);
 
   /* ---------- 기기 저장소 (localStorage가 막혀도 메모리로 동작) ---------- */
@@ -744,10 +752,18 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     return all[id];
   }
   function saveChecklist(id, c) { var all = store.get('checklists', {}); all[id] = c; store.set('checklists', all); }
+  /** 캘린더에 놓을 날짜: 공지 마감일, 마감일이 없으면 저장할 때 고른 날짜 ({date}) */
+  function calDate(id) {
+    var v = store.get('calendar', {})[id];
+    if (!v) return null;
+    var info = store.get('notices', {})[id] || {};
+    return info.deadline || (v && v.date) || null;
+  }
+  function calPicked(id) { var info = store.get('notices', {})[id] || {}; return !info.deadline && !!calDate(id); }
   function toChecklist(id) {
     var info = store.get('notices', {})[id] || {};
     var c = ensureChecklist(id);
-    return { noticeId: id, title: info.title, organizer: info.organizer, deadline: info.deadline, items: c.items, alarm: c.alarm };
+    return { noticeId: id, title: info.title, organizer: info.organizer, deadline: calDate(id), picked: calPicked(id), items: c.items, alarm: c.alarm };
   }
 
   /* ---------- 앱 안 알림함 ----------
@@ -788,7 +804,7 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
     var cache = store.get('notices', {});
     Object.keys(cal).forEach(function (id) {
       var n = cache[id];
-      var d = n ? ddays(n.deadline) : null;
+      var d = n ? ddays(calDate(id)) : null;
       if (d !== null && d >= 0 && d <= 3 && ensureChecklist(id).alarm.enabled) {
         addAlert('d3', id, d === 0 ? '오늘 마감' : '마감 D-' + d, n.title, 'd3:' + id + ':' + todayKey());
       }
@@ -834,14 +850,21 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
       return null;
     },
 
-    addToCalendar: async function (id) {
+    /** date: 마감일이 없는 공지를 저장할 때 학생이 고른 날짜 (YYYY-MM-DD) */
+    addToCalendar: async function (id, date) {
       var info = await noticeInfo(id);
-      if (!info || !info.deadline) throw new ApiError(422, '마감일이 정해지지 않은 공지는 캘린더에 넣을 수 없어요');
+      if (!info) throw new ApiError(404, '공지를 찾을 수 없어요');
+      if (!info.deadline && !/^\d{4}-\d{2}-\d{2}$/.test(date || '')) throw new ApiError(422, '마감일이 없는 공지예요. 저장할 날짜를 골라 주세요', 'NEED_DATE');
       var cal = store.get('calendar', {});
-      cal[id] = true;
+      cal[id] = info.deadline ? true : { date: date };
       store.set('calendar', cal);
       ensureChecklist(id);
-      return { noticeId: id, date: info.deadline, category: info.category, title: info.title, checklist: progress(id) };
+      return { noticeId: id, date: calDate(id), picked: calPicked(id), category: info.category, title: info.title, checklist: progress(id) };
+    },
+    removeFromCalendar: async function (id) {
+      var cal = store.get('calendar', {}); delete cal[id]; store.set('calendar', cal);
+      var all = store.get('checklists', {}); delete all[id]; store.set('checklists', all);
+      return null;
     },
 
     getCalendar: async function (from, to) {
@@ -849,7 +872,8 @@ input::placeholder,textarea::placeholder{color:var(--ink3)}
       var cache = store.get('notices', {});
       var events = Object.keys(cal).map(function (id) {
         var n = cache[id];
-        return n && n.deadline ? { noticeId: id, date: n.deadline, category: n.category, title: n.title, checklist: progress(id) } : null;
+        var date = calDate(id);
+        return n && date ? { noticeId: id, date: date, picked: calPicked(id), category: n.category, title: n.title, checklist: progress(id) } : null;
       }).filter(function (e) { return e && e.date >= from && e.date <= to; })
         .sort(function (a, b) { return a.date > b.date ? 1 : -1; });
       return { events: events };
@@ -1471,7 +1495,8 @@ R.NoticeDetail = () => {
     </a>
   </main>
   <div style="padding:12px 24px 28px;background:#fff;border-top:1px solid #EDE3E6;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;flex-shrink:0">
-    <a href="#" class="btno" data-act="saveCal" data-id="${esc(n.id)}">${ic('cal', 18)}캘린더에 저장</a>
+    ${!n.onCalendar && !n.deadline ? `<label style="grid-column:1 / -1;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:#5E4E53">마감일이 없는 공지예요 · 저장할 날짜<input type="date" id="calDate" value="${isoOf(TODAY)}" style="height:36px;padding:0 10px;border:1px solid #E6D9DD;border-radius:10px;background:#fff;font:inherit;font-size:14px;color:#231519"></label>` : ''}
+    <a href="#" class="btno" data-act="${n.onCalendar ? 'unsaveCal' : 'saveCal'}" data-id="${esc(n.id)}">${ic('cal', 18)}${n.onCalendar ? '캘린더에서 빼기' : '캘린더에 저장'}</a>
     <button type="button" class="btnp" data-act="apply" style="font-size:15px">신청하기</button>
   </div>
 </div>`;
@@ -1544,7 +1569,7 @@ R.CalendarChecklist = () => {
     </div>
     <section class="ns" data-scroll="ck" style="margin:14px -24px 0;flex:1;min-height:0;overflow-y:auto;background:#fff;border-radius:24px 24px 0 0;box-shadow:0 -6px 24px rgba(35,21,25,.08);padding:12px 24px 16px;display:flex;flex-direction:column">
       <span aria-hidden="true" style="align-self:center;width:36px;height:4px;border-radius:2px;background:#E6D9DD;flex-shrink:0"></span>
-      <div style="margin-top:14px;display:flex;align-items:center;gap:8px"><span class="badge ${badgeCls(c.deadline)}" style="height:26px;padding:0 10px;border-radius:13px;font-size:13px">${dday(c.deadline)}</span><span class="ell" style="font-size:13px;color:#5E4E53">${ko(c.deadline)} 마감 · ${esc(c.organizer || '')}</span></div>
+      <div style="margin-top:14px;display:flex;align-items:center;gap:8px"><span class="badge ${badgeCls(c.deadline)}" style="height:26px;padding:0 10px;border-radius:13px;font-size:13px">${dday(c.deadline)}</span><span class="ell" style="font-size:13px;color:#5E4E53">${ko(c.deadline)} ${c.picked ? '저장한 날짜' : '마감'} · ${esc(c.organizer || '')}</span></div>
       <h2 style="margin:8px 0 0;font-size:18px;line-height:1.4;font-weight:700;letter-spacing:-.3px">${esc(c.title)}</h2>
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
         <div style="display:flex;justify-content:space-between;align-items:baseline"><span style="font-size:13px;font-weight:600;color:#5E4E53">${done === total ? '준비를 모두 마쳤어요' : '신청 준비'}</span><span style="font-size:13px;font-weight:800;color:${B}">${done} / ${total} 완료</span></div>
@@ -1557,6 +1582,7 @@ R.CalendarChecklist = () => {
         ${ic('bell', 20, `color:${B}`)}<span id="l-alarm" style="flex:1;font-size:13px;color:#3E2E33">${c.alarm.enabled ? `마감 ${c.alarm.daysBefore.join('일 전 · ')}일 전에 알려드려요` : '마감 알림이 꺼져 있어요'}</span><button type="button" class="sw${c.alarm.enabled ? ' on' : ''}" role="switch" aria-checked="${c.alarm.enabled}" aria-labelledby="l-alarm" data-act="alarm"></button>
       </div>
       <a href="#" ${toNotice(c.noticeId)} class="btno" style="margin-top:12px;height:48px;flex-shrink:0">공지 상세 보기</a>
+      <a href="#" data-act="unsaveCal" data-id="${esc(c.noticeId)}" style="margin-top:4px;height:44px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#786A6E">캘린더에서 빼기</a>
     </section>
   </main>${nav('cal')}</div>`;
 };
@@ -2026,16 +2052,34 @@ const ACT = {
   apply: () => { const n = S.data.detail[S.noticeId]; openUrl(n && n.applyUrl, '신청 페이지로 이동해요'); },
   saveCal: async (d) => {
     const id = d.id || S.noticeId;
+    const picker = S.screen === 'NoticeDetail' ? document.getElementById('calDate') : null;
     try {
-      const ev = await Api.addToCalendar(id);
-      addToPhoneCalendar(id, ev);
+      const ev = await Api.addToCalendar(id, picker ? picker.value : undefined);
+      if (!ev.picked) addToPhoneCalendar(id, ev); // 고른 날짜는 마감일이 아니라서 폰 캘린더 '[마감]' 일정으로 넣지 않는다
       invalidate();
       S.month = (ev && ev.date ? ev.date : isoOf(TODAY)).slice(0, 7);
       go('Calendar');
-      toast('캘린더에 마감일을 저장했어요');
+      toast(ev.picked ? '고른 날짜로 캘린더에 저장했어요' : '캘린더에 마감일을 저장했어요');
     } catch (e) {
+      if (e && e.code === 'NEED_DATE') {
+        if (S.screen !== 'NoticeDetail' || S.noticeId !== id) { S.noticeId = id; go('NoticeDetail'); }
+        toast(e.message);
+        return;
+      }
       console.error(e);
       toast((e && e.status === 422 && e.message) || '캘린더에 저장하지 못했어요');
+    }
+  },
+  unsaveCal: async (d) => {
+    const id = d.id || S.noticeId || S.checklistId;
+    try {
+      await Api.removeFromCalendar(id);
+      invalidate();
+      if (S.screen === 'CalendarChecklist') go('Calendar'); else refresh();
+      toast(nativeCal.get()[id] ? '캘린더에서 뺐어요 · 폰 캘린더 일정은 폰에서 지워 주세요' : '캘린더에서 뺐어요');
+    } catch (e) {
+      console.error(e);
+      toast('캘린더에서 빼지 못했어요');
     }
   },
   noChecklist: () => toast('캘린더에 저장하면 AI가 체크리스트를 만들어요'),
