@@ -3,10 +3,11 @@
 이 폴더에서 작업하는 사람(과 Claude Code)이 지킬 규칙. 루트 CLAUDE.md의 절대 규칙도 그대로 적용된다.
 
 ## 작업 범위
-- 수정해도 되는 곳: `backend/app/crawler/adapters/`, `backend/tests/test_crawler_*.py`, `backend/tests/fixtures/crawler/`, `backend/scripts/`, 이 문서
-- 건드리지 않는 곳: `web/`, `app/`, `backend/app/llm/`, `rag/`, `matching/`, `routers/`, `models.py`, `schemas.py`, `main.py`, `config.py`, `seed_loader.py`,
-  `crawler/store.py`·`run.py`·`extract.py`·`extract_llm.py`·`base.py`, 루트 `CLAUDE.md`, `requirements.txt`
-  - 모델/API를 바꿔야 하면 직접 고치지 말고 팀에 먼저 말한다 (앱과 계약이 깨짐)
+- 2026-10-29부터 팀원(과 팀원의 Claude Code)이 프로젝트 전체(백엔드·web/·app/·크롤러)를 맡는다. 수정 금지 폴더는 없다.
+- 대신 바꿀 때 지킬 것:
+  - 루트 CLAUDE.md의 절대 규칙(개인정보, LLM은 판정하지 않음, 키는 .env)과 화면 디자인·데모 시드(seed/notices.json) 유지
+  - DB 모델·API 응답 형식(`models.py`, `schemas.py`, `routers/`)을 바꾸면 `web/index.html`도 같이 맞추고 테스트로 확인
+  - 변경마다 `python -m pytest -q` 통과
 
 ## 흐름
 ```
@@ -81,7 +82,7 @@
   Unregister-ScheduledTask -TaskName "Khuration Crawl" -Confirm:$false
   ```
 
-## 첨부 파싱 (parsers/) — 구현 완료, 크롤러 담당은 수정하지 않음
+## 첨부 파싱 (parsers/) — 구현 완료
 - `parse_attachment(data, filename)` → `ParseResult(text, method, needs_ocr, note)`. 형식은 매직 바이트로 판별
 - HWP 5.0: 자체 구현(olefile + 레코드 해석). 배포용·암호 문서는 빈 텍스트 + note
 - HWPX: zip 안 Contents/sectionN.xml. PDF: PyMuPDF, 페이지당 글자 40자 미만이면 스캔본(needs_ocr)
